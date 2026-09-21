@@ -76,7 +76,7 @@ func setup(in io.Reader, out io.Writer) (config.Config, *auth.Manager, error) {
 	}
 	if cfg.ClientID == "" {
 		fmt.Fprintln(out, "Welcome to Sonicli.")
-		fmt.Fprintln(out, "Create a Spotify developer app, add http://127.0.0.1/callback as a redirect URI, then paste its client ID.")
+		fmt.Fprintln(out, "Create a Spotify developer app, add http://127.0.0.1:8989/callback as a redirect URI, then paste its client ID.")
 		fmt.Fprint(out, "Spotify client ID: ")
 		value, err := bufio.NewReader(in).ReadString('\n')
 		if err != nil && !errors.Is(err, io.EOF) {

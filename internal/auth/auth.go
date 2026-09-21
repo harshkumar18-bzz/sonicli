@@ -13,7 +13,6 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +23,7 @@ import (
 const (
 	authorizeURL = "https://accounts.spotify.com/authorize"
 	tokenURL     = "https://accounts.spotify.com/api/token"
+	redirectURI  = "http://127.0.0.1:8989/callback"
 )
 
 var DefaultScopes = []string{
@@ -66,14 +66,13 @@ func NewManager(clientID string, store Store, out io.Writer) *Manager {
 }
 
 func (m *Manager) Login(ctx context.Context) error {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:8989")
 	if err != nil {
-		return fmt.Errorf("start OAuth callback: %w", err)
+		return fmt.Errorf("start OAuth callback on 127.0.0.1:8989 (is another process using it?): %w", err)
 	}
 	defer listener.Close()
 
-	redirect := "http://127.0.0.1:" + strconv.Itoa(listener.Addr().(*net.TCPAddr).Port) + "/callback"
-	cfg := m.oauthConfig(redirect)
+	cfg := m.oauthConfig(redirectURI)
 	state, err := randomURLString(32)
 	if err != nil {
 		return err

@@ -22,11 +22,11 @@ Release archives contain a single `sonicli` binary for Linux and macOS on AMD64 
 ## Spotify setup
 
 1. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard) and create an app.
-2. Add `http://127.0.0.1/callback` to its redirect URIs. Use the numeric loopback address exactly; Spotify does not allow `localhost`.
+2. Add `http://127.0.0.1:8989/callback` to its redirect URIs and click **Add**. Use the numeric loopback address and port exactly; Spotify does not allow `localhost`.
 3. Copy the app's client ID. A client secret is neither requested nor needed.
 4. Run `sonicli`. On first launch, paste the client ID and approve the browser login.
 
-Sonicli uses Authorization Code with PKCE and a temporary local callback. Tokens are stored in the operating-system keychain. On headless systems without a usable keychain, Sonicli falls back to a file readable only by your user and displays a warning.
+Sonicli uses Authorization Code with PKCE and a temporary callback listener on `127.0.0.1:8989`. Tokens are stored in the operating-system keychain. On headless systems without a usable keychain, Sonicli falls back to a file readable only by your user and displays a warning.
 
 ## Commands
 
