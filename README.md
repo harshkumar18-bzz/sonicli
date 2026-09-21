@@ -23,6 +23,19 @@ Add the `PATH` export to `~/.bashrc`, `~/.zshrc`, or the equivalent file for you
 
 Release archives contain a single `sonicli` binary for Linux and macOS on AMD64 and ARM64.
 
+## Update an existing installation
+
+Install the newest commit directly from GitHub, refresh the shell's command cache, and restart Sonicli:
+
+```sh
+GOPROXY=direct go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
+export PATH="$PATH:$(go env GOPATH)/bin"
+hash -r
+sonicli
+```
+
+Quit an already running copy with `q` before restarting it. A running process continues to use the old binary until it is closed.
+
 ## Quick start with local playback on Ubuntu or Debian
 
 This complete setup installs Sonicli and librespot, connects both logins, and makes selected music play through the current computer:
@@ -81,7 +94,7 @@ sonicli --version
 | `j` / `k`, arrows | Move selection |
 | `Enter` | Play, open, or choose |
 | `/` | Search Spotify |
-| `Space` | Play or pause |
+| `Space` | Pause the playing track or resume the paused track |
 | `n` / `p` | Next or previous track |
 | `h` / `l` | Seek backward or forward 10 seconds |
 | `+` / `-` | Change volume |
@@ -98,6 +111,8 @@ sonicli --version
 | `q` | Quit |
 
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
+
+The playback shortcut works whenever the search field is not accepting text. While the search field is active, `Space` inserts a space in the query; press `Enter` to submit the search or `Esc` to leave the field before toggling playback. Sonicli sends pause/resume to the active Spotify Connect, librespot, or Soloist device and refreshes Now Playing after the command.
 
 The current track is selected by default in Now Playing. Press `f` to toggle it in Spotify's **Liked Songs**, or `a` to add it to the end of the queue. Move onto an upcoming track with `j`/`k` to apply the same actions to that selection. Liked tracks display a clean `[LIKED]` label, and the Library's **Liked Songs** section refreshes after every change.
 
@@ -197,6 +212,15 @@ sonicli
 ```
 
 For ordinary Spotify Connect playback, open Spotify on a phone, browser, desktop app, or speaker, start that device, and select it from Sonicli's **Devices** view by pressing `d`.
+
+### Space does not pause or resume
+
+First update Sonicli using the command from **Update an existing installation**, quit the running copy with `q`, and start it again. Then check these two common causes:
+
+- If the search field is active, press `Enter` or `Esc` before using `Space` as a playback shortcut.
+- If the footer reports that no active device exists, press `d` and select a device, or run `sonicli player status` to verify the configured local backend.
+
+Press `?` inside Sonicli to confirm the complete keyboard map.
 
 ### librespot starts but does not appear
 
