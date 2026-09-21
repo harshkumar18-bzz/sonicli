@@ -159,6 +159,13 @@ func TestAPIErrorTranslation(t *testing.T) {
 	}
 }
 
+func TestNoActiveDeviceErrorTranslation(t *testing.T) {
+	err := (&APIError{Status: http.StatusNotFound, Message: "Player command failed: No active device found"}).Error()
+	if !strings.Contains(err, "player status") || !strings.Contains(err, "pair librespot") {
+		t.Fatalf("translated error = %q", err)
+	}
+}
+
 func TestPlaybackProgress(t *testing.T) {
 	p := Playback{Playing: true, Progress: 1000, Item: &Track{Duration: 5000}, FetchedAt: time.Now().Add(-2 * time.Second)}
 	got := p.CurrentProgress(time.Now())

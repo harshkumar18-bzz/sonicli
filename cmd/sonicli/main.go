@@ -68,7 +68,10 @@ func run(args []string, in io.Reader, out, errOut io.Writer) error {
 		fmt.Fprintln(errOut, "Warning: system keychain unavailable; OAuth token is stored in a permission-restricted local file.")
 	}
 	client := spotify.New(manager)
-	api, stopLocal := startLocalPlayer(cfg.Player, client, errOut)
+	api, stopLocal, err := startLocalPlayer(cfg.Player, client, errOut)
+	if err != nil {
+		return err
+	}
 	defer stopLocal()
 	program := tea.NewProgram(tui.New(api, cfg.Unicode), tea.WithAltScreen())
 	_, err = program.Run()
@@ -276,53 +279,65 @@ func runPlayer(args []string, out io.Writer) error {
 	}
 }
 
-func startLocalPlayer(preference string, client *spotify.Client, errOut io.Writer) (tui.API, func()) {
+func startLocalPlayer(preference string, client *spotify.Client, errOut io.Writer) (tui.API, func(), error) {
+	noStop := func() {}
 	if preference == "" {
 		preference = "auto"
 	}
 	if preference == "connect" {
-		return client, func() {}
+		return client, noStop, nil
 	}
 	if preference == "auto" || preference == "soloist" {
 		local, err := player.DiscoverSoloist()
 		if err == nil && local.Configured() {
 			if err := local.Start(context.Background()); err == nil {
-				return &player.API{Client: client, Local: local}, func() { _ = local.Stop() }
+				return &player.API{Client: client, Local: local}, func() { _ = local.Stop() }, nil
+			} else if preference == "soloist" {
+				return nil, noStop, fmt.Errorf("start Spotify Soloist: %w", err)
 			} else {
-				fmt.Fprintln(errOut, "Spotify Soloist unavailable:", err)
+				fmt.Fprintln(errOut, "Spotify Soloist unavailable; trying another Connect backend:", err)
 			}
 		} else if preference == "soloist" {
 			if err != nil {
-				fmt.Fprintln(errOut, "Spotify Soloist unavailable:", err)
-			} else {
-				fmt.Fprintln(errOut, "Spotify Soloist unavailable: set SOLOIST_API_KEY first")
+				return nil, noStop, fmt.Errorf("Spotify Soloist unavailable: %w", err)
 			}
+			return nil, noStop, errors.New("Spotify Soloist is selected but SOLOIST_API_KEY is not set")
 		}
 	}
 	if preference == "auto" || preference == "librespot" {
 		local, err := player.DiscoverLibrespot()
-		if err == nil && local.Paired() {
-			if err := local.Start(context.Background()); err == nil {
-				waitCtx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
-				device, waitErr := player.WaitForDevice(waitCtx, client, local.Name)
-				cancel()
-				if waitErr == nil {
-					return &player.API{Client: client, TargetDeviceID: device.ID}, func() { _ = local.Stop() }
-				}
-				_ = local.Stop()
-				fmt.Fprintln(errOut, "librespot unavailable:", waitErr)
-			} else {
-				fmt.Fprintln(errOut, "librespot unavailable:", err)
+		if err != nil {
+			if preference == "librespot" {
+				return nil, noStop, fmt.Errorf("librespot is selected but unavailable: %w; install it, then run `sonicli player pair librespot`", err)
 			}
-		} else if preference == "librespot" || (err == nil && !local.Paired()) {
-			if err != nil {
-				fmt.Fprintln(errOut, "librespot unavailable:", err)
-			} else {
-				fmt.Fprintln(errOut, "librespot is installed but not paired; run `sonicli player pair librespot`")
+			return client, noStop, nil
+		}
+		if !local.Paired() {
+			if preference == "librespot" {
+				return nil, noStop, errors.New("librespot is selected but not paired; run `sonicli player pair librespot`")
 			}
+			fmt.Fprintln(errOut, "librespot is installed but not paired; using another Spotify Connect device")
+			return client, noStop, nil
+		}
+		if err := local.Start(context.Background()); err == nil {
+			waitCtx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+			device, waitErr := player.WaitForDevice(waitCtx, client, local.Name)
+			cancel()
+			if waitErr == nil {
+				return &player.API{Client: client, TargetDeviceID: device.ID}, func() { _ = local.Stop() }, nil
+			}
+			_ = local.Stop()
+			if preference == "librespot" {
+				return nil, noStop, fmt.Errorf("librespot started but its Spotify Connect device was unavailable: %w", waitErr)
+			}
+			fmt.Fprintln(errOut, "librespot unavailable; using another Spotify Connect device:", waitErr)
+		} else if preference == "librespot" {
+			return nil, noStop, fmt.Errorf("start librespot: %w", err)
+		} else {
+			fmt.Fprintln(errOut, "librespot unavailable; using another Spotify Connect device:", err)
 		}
 	}
-	return client, func() {}
+	return client, noStop, nil
 }
 
 func pairPlayer(backend string, out io.Writer) error {

@@ -68,13 +68,15 @@ Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --
 
 Sonicli can manage a user-installed [librespot](https://github.com/librespot-org/librespot) process on Linux or macOS. librespot turns the computer into a Spotify Connect receiver, while Sonicli continues to use the official Web API for search, library, queue, and selecting music. A Spotify Premium account is required.
 
-1. Install the current librespot release and make sure `librespot` is in `PATH`. The upstream project supports installation with Rust:
+1. Install the current librespot release and make sure `librespot` is in `PATH`. On Debian or Ubuntu, install the default Rodio/ALSA build dependencies first, as required by the upstream project:
 
    ```sh
-   cargo install librespot
+   sudo apt-get install build-essential libasound2-dev
+   cargo install librespot --locked
+   export PATH="$PATH:$HOME/.cargo/bin"
    ```
 
-   Distribution packages can also be used when they provide a recent version with a working audio backend.
+   On macOS, `cargo install librespot --locked` is normally sufficient. Distribution packages can also be used when they provide a recent version with a working audio backend.
 2. Pair it once using librespot's own browser login:
 
    ```sh

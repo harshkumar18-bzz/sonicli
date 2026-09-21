@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"io"
 	"strings"
 	"testing"
+
+	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
 )
 
 func TestHelpVersionAndCompletion(t *testing.T) {
@@ -25,6 +28,17 @@ func TestHelpVersionAndCompletion(t *testing.T) {
 		if !strings.Contains(out.String(), tt.want) {
 			t.Errorf("run(%v) output %q does not contain %q", tt.args, out.String(), tt.want)
 		}
+	}
+}
+
+func TestSelectedLibrespotFailsBeforeOpeningTUIWhenMissing(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	api, stop, err := startLocalPlayer("librespot", spotify.New(nil), io.Discard)
+	if stop != nil {
+		stop()
+	}
+	if err == nil || api != nil || !strings.Contains(err.Error(), "install it") {
+		t.Fatalf("startLocalPlayer() = %T, %v", api, err)
 	}
 }
 

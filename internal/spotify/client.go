@@ -50,6 +50,15 @@ func (e *APIError) Error() string {
 			return "no usable Spotify device; open Spotify on a device or choose one with `d`"
 		}
 		return "Spotify denied this action; check the account, app allowlist, and requested permissions"
+	case http.StatusNotFound:
+		msg := strings.ToLower(e.Message + " " + e.Reason)
+		if strings.Contains(msg, "active device") || strings.Contains(msg, "no device") {
+			return "no active Spotify device; run `sonicli player status`, pair librespot, or open Spotify on another device"
+		}
+		if e.Message != "" {
+			return fmt.Sprintf("Spotify API (404): %s", e.Message)
+		}
+		return "Spotify could not find the requested item"
 	case http.StatusTooManyRequests:
 		if e.RetryAfter > 0 {
 			return fmt.Sprintf("Spotify rate limit reached; retry in %s", e.RetryAfter.Round(time.Second))
