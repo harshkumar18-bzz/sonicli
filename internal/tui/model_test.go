@@ -114,6 +114,7 @@ type recordingAPI struct {
 	saved    []string
 	removed  []string
 	volume   int
+	next     int
 	contains bool
 }
 
@@ -138,6 +139,10 @@ func (f *recordingAPI) ContainsLibrary(_ context.Context, uris []string) ([]bool
 }
 func (f *recordingAPI) Volume(_ context.Context, volume int, _ string) error {
 	f.volume = volume
+	return nil
+}
+func (f *recordingAPI) Next(context.Context, string) error {
+	f.next++
 	return nil
 }
 
@@ -220,6 +225,73 @@ func TestTrackOnlyActionsAndBasicControls(t *testing.T) {
 	m = updated.(Model)
 	if m.view != NowPlaying || m.selected != 0 || cmd == nil {
 		t.Fatalf("go now playing: %s", m.DebugState())
+	}
+}
+
+func TestRemoveQueuedTrackIsHiddenAndSkippedWhenReached(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+	m.playback.Item.ID = "1"
+	m.playback.Timestamp = 100
+	m.queue = []spotify.Track{{ID: "2", URI: "spotify:track:2", Name: "Afterglow"}}
+	m.selected = 1
+
+	updated, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = updated.(Model)
+	if cmd != nil || len(m.queue) != 0 || m.skipQueue["spotify:track:2"] != 1 || !m.skipNext {
+		t.Fatalf("remove queued state: queue=%#v pending=%#v next=%t", m.queue, m.skipQueue, m.skipNext)
+	}
+
+	updated, _ = m.Update(queueMsg{value: spotify.Queue{Items: []spotify.Track{{ID: "2", URI: "spotify:track:2", Name: "Afterglow"}}}})
+	m = updated.(Model)
+	if len(m.queue) != 0 {
+		t.Fatalf("removed track returned to visible queue: %#v", m.queue)
+	}
+
+	nextPlayback := spotify.Playback{Playing: true, Timestamp: 200, Device: spotify.Device{ID: "d1"}, Item: &spotify.Track{ID: "2", URI: "spotify:track:2", Name: "Afterglow", Duration: 100_000}}
+	updated, cmd = m.Update(playbackMsg{value: nextPlayback})
+	m = updated.(Model)
+	if m.skipQueue["spotify:track:2"] != 0 || cmd == nil {
+		t.Fatalf("pending removal not consumed: %#v", m.skipQueue)
+	}
+	batch, ok := cmd().(tea.BatchMsg)
+	if !ok {
+		t.Fatalf("remove playback command type = %T", cmd())
+	}
+	for _, child := range batch {
+		if child != nil {
+			_ = child()
+		}
+	}
+	if api.next != 1 {
+		t.Fatalf("Next() calls = %d", api.next)
+	}
+}
+
+func TestRemoveQueueRejectsAmbiguousDuplicate(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+	m.queue = []spotify.Track{
+		{ID: "2", URI: "spotify:track:2", Name: "Afterglow"},
+		{ID: "2", URI: "spotify:track:2", Name: "Afterglow"},
+	}
+	m.selected = 1
+	updated, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}})
+	m = updated.(Model)
+	if cmd != nil || len(m.skipQueue) != 0 || !m.statusError || !strings.Contains(m.status, "identical") {
+		t.Fatalf("duplicate removal: pending=%#v status=%q", m.skipQueue, m.status)
+	}
+}
+
+func TestFrameTickKeepsProgressRenderingResponsive(t *testing.T) {
+	m := New(fakeAPI{}, false)
+	updated, cmd := m.Update(frameMsg(time.Now()))
+	if _, ok := updated.(Model); !ok || cmd == nil {
+		t.Fatal("frame tick did not schedule the next render")
 	}
 }
 

@@ -3,62 +3,62 @@ SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
  > Night Drive
-   Example · Signals
+   Example
+   Signals
 
-   =-----------------------------------  0:10 / 3:20
-   >  Desk  vol 45%  shuffle off  repeat
+   0:10  ==--------------------------------------  -3:10
+   PLAYING  |  Desk  |  VOL 45%
+   SHUFFLE OFF  |  REPEAT OFF
 
-   Up next
+   Up next  1
+   Enter play now  ·  a add  ·  x remove
    Afterglow  Example
 
-
-
-
 ──────────────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ? help
+  a queue   x remove   f like   space play/pause   ? help
 --- narrow ---
 SONICLI  Now Playing                   Spotify Connect
 ────────────────────────────────────────────────────────────
 
  > Night Drive
-   Example · Signals
+   Example
+   Signals
 
-   =-------------------------  0:10 / 3:20
-   >  Desk  vol 45%  shuffle off  repeat
+   0:10  =-----------------------------  -3:10
+   PLAYING  |  Desk  |  VOL 45%
+   SHUFFLE OFF  |  REPEAT OFF
 
-   Up next
+   Up next  1
+   Enter play now  ·  a add  ·  x remove
    Afterglow  Example
 
-
-
-
 ────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ?…
+  a queue   x remove   f like   space play/pause   ? help
 --- no_color ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
  > Night Drive
-   Example · Signals
+   Example
+   Signals
 
-   =-----------------------------------  0:10 / 3:20
-   >  Desk  vol 45%  shuffle off  repeat
+   0:10  ==--------------------------------------  -3:10
+   PLAYING  |  Desk  |  VOL 45%
+   SHUFFLE OFF  |  REPEAT OFF
 
-   Up next
+   Up next  1
+   Enter play now  ·  a add  ·  x remove
    Afterglow  Example
 
-
-
-
 ──────────────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ? help
+  a queue   x remove   f like   space play/pause   ? help
 --- empty ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
-   Nothing is playing. Open Spotify on a device, then press d.
+   Nothing is playing
 
-
+   Press / to find music or d to choose a Spotify Connect device.
 
 
 
@@ -69,7 +69,7 @@ SONICLI  Now Playing                             Spotify Connect
 
 
 ──────────────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ? help
+  a queue   x remove   f like   space play/pause   ? help
 --- loading ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
@@ -87,40 +87,40 @@ SONICLI  Now Playing                             Spotify Connect
 
 
 ──────────────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ? help
+  a queue   x remove   f like   space play/pause   ? help
 --- offline ---
 SONICLI  Now Playing                OFFLINE · showing last state
 ──────────────────────────────────────────────────────────────────────
 
  > Night Drive
-   Example · Signals
+   Example
+   Signals
 
-   =-----------------------------------  0:10 / 3:20
-   >  Desk  vol 45%  shuffle off  repeat
+   0:10  ==--------------------------------------  -3:10
+   PLAYING  |  Desk  |  VOL 45%
+   SHUFFLE OFF  |  REPEAT OFF
 
-   Up next
+   Up next  1
+   Enter play now  ·  a add  ·  x remove
    Afterglow  Example
 
-
-
-
 ──────────────────────────────────────────────────────────────────────
-  a queue   f like   space play/pause   g now playing   ? help
+  a queue   x remove   f like   space play/pause   ? help
 --- error ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
  > Night Drive
-   Example · Signals
+   Example
+   Signals
 
-   =-----------------------------------  0:10 / 3:20
-   >  Desk  vol 45%  shuffle off  repeat
+   0:10  ==--------------------------------------  -3:10
+   PLAYING  |  Desk  |  VOL 45%
+   SHUFFLE OFF  |  REPEAT OFF
 
-   Up next
+   Up next  1
+   Enter play now  ·  a add  ·  x remove
    Afterglow  Example
-
-
-
 
 ──────────────────────────────────────────────────────────────────────
   Spotify rate limit reached

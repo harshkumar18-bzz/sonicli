@@ -88,6 +88,7 @@ sonicli --version
 | `m` | Mute or restore the previous volume |
 | `s` / `r` | Toggle shuffle or cycle repeat |
 | `a` | Add the current or selected track to the queue |
+| `x` | Remove an upcoming track from Sonicli's session queue |
 | `f` | Add or remove the current or selected track from Liked Songs |
 | `g` | Return to Now Playing |
 | `u` | Refresh the current view |
@@ -99,6 +100,10 @@ sonicli --version
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
 
 The current track is selected by default in Now Playing. Press `f` to toggle it in Spotify's **Liked Songs**, or `a` to add it to the end of the queue. Move onto an upcoming track with `j`/`k` to apply the same actions to that selection. Liked tracks display a heart (`*` in ASCII mode), and the Library's **Liked Songs** section refreshes after every change.
+
+Spotify's Web API can read the playback queue and append to it, but it does not provide an endpoint to delete or reorder individual live queue entries. When you press `x`, Sonicli immediately hides that occurrence and automatically skips it when Spotify reaches it. This removal is active only while the current Sonicli session remains open; it does not mutate Spotify's server-side queue.
+
+Now Playing renders progress locally four times per second for a responsive elapsed/remaining counter while retaining the slower Spotify polling interval needed to avoid unnecessary API traffic. When a session-local removal is about to reach the front of the queue, Sonicli temporarily polls more quickly so the unwanted track is skipped promptly.
 
 ## Easy local playback with librespot
 

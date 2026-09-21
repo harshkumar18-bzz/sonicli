@@ -91,20 +91,23 @@ func (m Model) nowPlayingView(p palette, height int) string {
 		return "\n  Loading playback…"
 	}
 	if m.playback.Item == nil {
-		return "\n  Nothing is playing. Open Spotify on a device, then press d."
+		return "\n  Nothing is playing\n\n  Press / to find music or d to choose a Spotify Connect device."
 	}
 	t := *m.playback.Item
-	play := m.symbol("▶", ">")
+	play := "PLAYING"
 	if !m.playback.Playing {
-		play = m.symbol("Ⅱ", "||")
+		play = "PAUSED"
 	}
-	explicit := ""
+	badges := make([]string, 0, 2)
 	if t.Explicit {
-		explicit = "  E"
+		badges = append(badges, "E")
 	}
-	liked := ""
 	if m.saved[t.URI] {
-		liked = m.symbol("  ♥", "  *")
+		badges = append(badges, m.symbol("♥ LIKED", "* LIKED"))
+	}
+	badgeText := ""
+	if len(badges) > 0 {
+		badgeText = "  " + strings.Join(badges, "  ")
 	}
 	titlePrefix := "  "
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(p.text)
@@ -112,11 +115,16 @@ func (m Model) nowPlayingView(p palette, height int) string {
 		titlePrefix = m.symbol("› ", "> ")
 		titleStyle = titleStyle.Foreground(p.accent)
 	}
-	title := titleStyle.Render(t.Name + liked)
-	artist := lipgloss.NewStyle().Foreground(p.muted).Render(t.ArtistNames() + " · " + t.Album.Name + explicit)
-	progress := m.progressBar(t.Duration, m.playback.CurrentProgress(time.Now()), max(20, min(m.width-34, 58)), p)
-	meta := fmt.Sprintf("%s  %s  vol %d%%  shuffle %s  repeat %s", play, m.playback.Device.Name, m.playback.Device.Volume, onOff(m.playback.Shuffle), m.playback.Repeat)
-	lines := []string{"", titlePrefix + title, "  " + artist, "", "  " + progress, "  " + lipgloss.NewStyle().Foreground(p.muted).Render(meta), "", lipgloss.NewStyle().Bold(true).Render("  Up next")}
+	title := titleStyle.Render(t.Name + badgeText)
+	artist := lipgloss.NewStyle().Foreground(p.text).Render(t.ArtistNames())
+	album := lipgloss.NewStyle().Foreground(p.muted).Render(t.Album.Name)
+	progress := m.progressBar(t.Duration, m.playback.CurrentProgress(time.Now()), max(18, min(m.width-30, 58)), p)
+	separator := m.symbol("  •  ", "  |  ")
+	transport := strings.Join([]string{play, emptyAs(m.playback.Device.Name, "No device"), fmt.Sprintf("VOL %d%%", m.playback.Device.Volume)}, separator)
+	modes := strings.Join([]string{"SHUFFLE " + strings.ToUpper(onOff(m.playback.Shuffle)), "REPEAT " + strings.ToUpper(emptyAs(m.playback.Repeat, "off"))}, separator)
+	queueLabel := fmt.Sprintf("  Up next  %d", len(m.queue))
+	queueHint := "  Enter play now  ·  a add  ·  x remove"
+	lines := []string{"", titlePrefix + title, "  " + artist, "  " + album, "", "  " + progress, "  " + lipgloss.NewStyle().Foreground(p.muted).Render(transport), "  " + lipgloss.NewStyle().Foreground(p.muted).Render(modes), "", lipgloss.NewStyle().Bold(true).Render(queueLabel), lipgloss.NewStyle().Foreground(p.muted).Render(queueHint)}
 	limit := max(1, height-len(lines)-2)
 	lines = append(lines, m.trackRows(m.queue, limit, 1, "  Queue is empty.", p)...)
 	return strings.Join(lines, "\n")
@@ -246,7 +254,7 @@ func (m Model) row(index int, primary, secondary string, p palette) string {
 }
 
 func (m Model) footerView(p palette) string {
-	text := "a queue   f like   space play/pause   g now playing   ? help"
+	text := "a queue   x remove   f like   space play/pause   ? help"
 	statusActive := m.status != "" && time.Now().Before(m.statusUntil)
 	if statusActive {
 		text = m.status
@@ -260,7 +268,7 @@ func (m Model) footerView(p palette) string {
 
 func (m Model) helpView() string {
 	keys := []string{
-		"SONICLI · KEYBOARD", "", "tab / shift+tab   next / previous view", "j k / arrows       move selection", "enter              play, open, or select", "/                  search", "space              play / pause", "n / p              next / previous track", "h / l              seek -10s / +10s", "+ / -              volume", "m                  mute / unmute", "s / r              shuffle / repeat", "a                  add track to queue", "f                  like / unlike track", "g                  go to now playing", "u                  refresh current view", "d                  choose playback device", "[ / ]              library section", "esc                back / close", "q                  quit", "", "Press ? or q to close help.",
+		"SONICLI · KEYBOARD", "", "tab / shift+tab   next / previous view", "j k / arrows       move selection", "enter              play, open, or select", "/                  search", "space              play / pause", "n / p              next / previous track", "h / l              seek -10s / +10s", "+ / -              volume", "m                  mute / unmute", "s / r              shuffle / repeat", "a                  add track to queue", "x                  remove upcoming track*", "f                  like / unlike track", "g                  go to now playing", "u                  refresh current view", "d                  choose playback device", "[ / ]              library section", "esc                back / close", "q                  quit", "", "*Session-local: Sonicli auto-skips it when reached.", "Press ? or q to close help.",
 	}
 	return lipgloss.NewStyle().Width(m.width).Height(m.height).Padding(1, 3).Render(strings.Join(keys, "\n"))
 }
@@ -275,7 +283,8 @@ func (m Model) progressBar(duration, progress, width int, p palette) string {
 		full, empty = "=", "-"
 	}
 	bar := lipgloss.NewStyle().Foreground(p.accent).Render(strings.Repeat(full, filled)) + lipgloss.NewStyle().Foreground(p.border).Render(strings.Repeat(empty, width-filled))
-	return fmt.Sprintf("%s  %s / %s", bar, formatDuration(progress), formatDuration(duration))
+	remaining := max(0, duration-progress)
+	return fmt.Sprintf("%s  %s  -%s", formatDuration(progress), bar, formatDuration(remaining))
 }
 
 func (m Model) symbol(unicode, ascii string) string {
@@ -289,6 +298,12 @@ func onOff(value bool) string {
 		return "on"
 	}
 	return "off"
+}
+func emptyAs(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 func formatDuration(ms int) string {
 	if ms < 0 {

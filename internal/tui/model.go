@@ -85,6 +85,8 @@ type Model struct {
 	statusError   bool
 	statusUntil   time.Time
 	saved         map[string]bool
+	skipQueue     map[string]int
+	skipNext      bool
 	lastVolume    int
 	unicode       bool
 	noColor       bool
@@ -103,16 +105,18 @@ func New(api API, unicode bool) Model {
 		search:       input,
 		loading:      true,
 		saved:        make(map[string]bool),
+		skipQueue:    make(map[string]int),
 		unicode:      unicode && os.Getenv("TERM") != "dumb",
 		noColor:      os.Getenv("NO_COLOR") != "",
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(loadPlayback(m.api, true), loadQueue(m.api), loadLibrary(m.api))
+	return tea.Batch(loadPlayback(m.api, true), loadQueue(m.api), loadLibrary(m.api), frameAfter())
 }
 
 type tickMsg time.Time
+type frameMsg time.Time
 type playbackMsg struct {
 	value spotify.Playback
 	err   error
@@ -166,6 +170,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.search.Width = max(16, msg.Width-10)
 	case tickMsg:
 		cmds = append(cmds, loadPlayback(m.api, true))
+	case frameMsg:
+		cmds = append(cmds, frameAfter())
 	case playbackMsg:
 		m.loading = false
 		previousTrack := ""
@@ -182,6 +188,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.playback.Playing {
 				m.pollDelay = 4 * time.Second
 			}
+			if m.skipNext && m.playback.Item != nil && m.playback.Item.Duration-m.playback.Progress <= 8_000 {
+				m.pollDelay = 500 * time.Millisecond
+			}
+			playbackAdvanced := previousTrack != "" && m.playback.Item != nil && m.playback.Item.ID != previousTrack
+			if m.skipNext && playbackAdvanced && m.playback.Item != nil && m.skipQueue[m.playback.Item.URI] > 0 {
+				m.skipQueue[m.playback.Item.URI]--
+				if m.skipQueue[m.playback.Item.URI] == 0 {
+					delete(m.skipQueue, m.playback.Item.URI)
+				}
+				m.setStatus("Removed queued track reached playback; skipping it", false)
+				cmds = append(cmds, action(func(ctx context.Context) error {
+					return m.api.Next(ctx, m.deviceID())
+				}, "Removed track skipped", true))
+			}
 			if m.playback.Item != nil && m.playback.Item.ID != previousTrack {
 				cmds = append(cmds, loadQueue(m.api))
 				cmds = append(cmds, checkSaved(m.api, []string{m.playback.Item.URI}))
@@ -192,7 +212,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case queueMsg:
 		if msg.err == nil {
-			m.queue = msg.value.Items
+			m.skipNext = len(msg.value.Items) > 0 && m.skipQueue[msg.value.Items[0].URI] > 0
+			m.queue = m.visibleQueue(msg.value.Items)
+			if m.selected >= m.itemCount() {
+				m.selected = max(0, m.itemCount()-1)
+			}
 			cmds = append(cmds, checkSaved(m.api, trackURIs(m.queue)))
 		}
 	case devicesMsg:
@@ -392,6 +416,34 @@ func (m Model) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, queueAction(m.api, track.URI, m.deviceID(), track.Name)
 		}
 		m.setStatus("Choose a track before adding to the queue", true)
+	case "x":
+		if m.view != NowPlaying || m.selected <= 0 || m.selected-1 >= len(m.queue) {
+			m.setStatus("Select an upcoming track to remove from the queue", true)
+			return m, nil
+		}
+		track := m.queue[m.selected-1]
+		if m.playback.Item != nil && track.URI == m.playback.Item.URI {
+			m.setStatus("Cannot safely remove a queued duplicate of the current track", true)
+			return m, nil
+		}
+		occurrences := 0
+		for _, queued := range m.queue {
+			if queued.URI == track.URI {
+				occurrences++
+			}
+		}
+		if occurrences > 1 {
+			m.setStatus("Cannot safely remove one of several identical queued tracks", true)
+			return m, nil
+		}
+		m.skipQueue[track.URI]++
+		m.skipNext = m.selected == 1
+		m.queue = append(m.queue[:m.selected-1], m.queue[m.selected:]...)
+		if m.selected >= m.itemCount() {
+			m.selected = max(0, m.itemCount()-1)
+		}
+		m.setStatus("Removed "+track.Name+" · Sonicli will skip it when reached", false)
+		return m, nil
 	case "f":
 		if track, ok := m.selectedTrack(); ok {
 			return m, toggleSaved(m.api, track.URI)
@@ -540,6 +592,22 @@ func (m Model) refreshView() tea.Cmd {
 	return nil
 }
 
+func (m Model) visibleQueue(tracks []spotify.Track) []spotify.Track {
+	pending := make(map[string]int, len(m.skipQueue))
+	for uri, count := range m.skipQueue {
+		pending[uri] = count
+	}
+	visible := make([]spotify.Track, 0, len(tracks))
+	for _, track := range tracks {
+		if pending[track.URI] > 0 {
+			pending[track.URI]--
+			continue
+		}
+		visible = append(visible, track)
+	}
+	return visible
+}
+
 func (m Model) deviceID() string { return m.playback.Device.ID }
 
 func (m *Model) setStatus(message string, isError bool) {
@@ -548,6 +616,9 @@ func (m *Model) setStatus(message string, isError bool) {
 
 func tickAfter(d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(t time.Time) tea.Msg { return tickMsg(t) })
+}
+func frameAfter() tea.Cmd {
+	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg { return frameMsg(t) })
 }
 func loadPlayback(api API, poll bool) tea.Cmd {
 	return func() tea.Msg { v, err := api.Playback(context.Background()); return playbackMsg{v, err, poll} }

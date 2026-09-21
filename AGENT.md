@@ -110,6 +110,10 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
 - Translate errors into actions a terminal user can take. In particular,
   missing Premium, expired login, insufficient scope, rate limiting, and no
   active device must not appear only as raw HTTP errors.
+- Spotify exposes queue read and append operations but no live-queue delete or
+  reorder endpoint. Keep queue removal labeled as a session-local Sonicli
+  action that hides an occurrence and auto-skips it when reached; never claim
+  that it mutates Spotify's server-side queue.
 - Preserve the last usable TUI state during transient offline failures.
 
 ### Local playback
@@ -138,7 +142,8 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
 - Keep the minimum-size message, narrow single-pane layout, normal side-nav
   layout, `NO_COLOR` behavior, and ASCII fallback working.
 - Poll playback approximately every four seconds while playing and less often
-  while paused. Continue interpolating progress locally between polls.
+  while paused. Continue interpolating progress locally and render frame ticks
+  independently so the timer can update smoothly without extra API calls.
 - Status and error notices should not block navigation or close the TUI.
 
 ## Making a change
