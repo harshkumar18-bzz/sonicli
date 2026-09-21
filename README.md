@@ -219,6 +219,8 @@ go run ./cmd/sonicli
 
 The Spotify client is intentionally implemented directly against the current Web API instead of wrapping an older SDK. API tests use local HTTP servers and never require Spotify credentials.
 
+Contributors and coding agents should read [AGENT.md](AGENT.md) after cloning. It documents repository structure, security constraints, safe modification workflows, required tests, cross-platform checks, and the release process.
+
 ## Limitations
 
 Sonicli delegates direct audio decoding to a separately installed playback backend rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.
