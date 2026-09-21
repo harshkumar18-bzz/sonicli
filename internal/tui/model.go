@@ -85,6 +85,7 @@ type Model struct {
 	statusError   bool
 	statusUntil   time.Time
 	saved         map[string]bool
+	lastVolume    int
 	unicode       bool
 	noColor       bool
 	pollDelay     time.Duration
@@ -141,14 +142,20 @@ type playlistMsg struct {
 	err      error
 }
 type actionMsg struct {
-	message string
-	err     error
-	refresh bool
+	message      string
+	err          error
+	refresh      bool
+	refreshQueue bool
 }
 type savedMsg struct {
 	uri   string
 	saved bool
 	err   error
+}
+type savedStateMsg struct {
+	uris   []string
+	values []bool
+	err    error
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -177,6 +184,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			if m.playback.Item != nil && m.playback.Item.ID != previousTrack {
 				cmds = append(cmds, loadQueue(m.api))
+				cmds = append(cmds, checkSaved(m.api, []string{m.playback.Item.URI}))
 			}
 		}
 		if msg.poll {
@@ -185,6 +193,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case queueMsg:
 		if msg.err == nil {
 			m.queue = msg.value.Items
+			cmds = append(cmds, checkSaved(m.api, trackURIs(m.queue)))
 		}
 	case devicesMsg:
 		if msg.err != nil {
@@ -199,6 +208,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.searchResults = flattenSearch(msg.value)
 			m.selected = 0
+			cmds = append(cmds, checkSaved(m.api, searchTrackURIs(m.searchResults)))
 		}
 	case libraryMsg:
 		if msg.err != nil {
@@ -215,6 +225,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			m.openPlaylist, m.playlistItems = &msg.playlist, msg.items
 			m.selected = 0
+			tracks := make([]spotify.Track, len(msg.items))
+			for i := range msg.items {
+				tracks[i] = msg.items[i].Item
+			}
+			cmds = append(cmds, checkSaved(m.api, trackURIs(tracks)))
 		}
 	case actionMsg:
 		if msg.err != nil {
@@ -225,15 +240,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.refresh {
 			cmds = append(cmds, delayedRefresh(m.api))
 		}
+		if msg.refreshQueue {
+			cmds = append(cmds, delayedQueueRefresh(m.api))
+		}
 	case savedMsg:
 		if msg.err != nil {
 			m.setStatus(msg.err.Error(), true)
 		} else {
 			m.saved[msg.uri] = msg.saved
 			if msg.saved {
-				m.setStatus("Saved to library", false)
+				m.setStatus("Added to Liked Songs", false)
 			} else {
-				m.setStatus("Removed from library", false)
+				m.setStatus("Removed from Liked Songs", false)
+			}
+			cmds = append(cmds, loadLibrary(m.api))
+		}
+	case savedStateMsg:
+		if msg.err == nil {
+			for i, uri := range msg.uris {
+				if i < len(msg.values) {
+					m.saved[uri] = msg.values[i]
+				}
 			}
 		}
 	case tea.KeyMsg:
@@ -287,6 +314,13 @@ func (m Model) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		m.previousView, m.view, m.selected = m.view, Devices, 0
 		return m, loadDevices(m.api)
+	case "g":
+		m.openPlaylist = nil
+		m.previousView, m.view, m.selected = m.view, NowPlaying, 0
+		return m, m.loadView()
+	case "u":
+		m.setStatus("Refreshing…", false)
+		return m, m.refreshView()
 	case "esc":
 		if m.openPlaylist != nil {
 			m.openPlaylist = nil
@@ -334,6 +368,17 @@ func (m Model) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, action(func(ctx context.Context) error { return m.api.Volume(ctx, m.playback.Device.Volume+5, m.deviceID()) }, "Volume raised", true)
 	case "-":
 		return m, action(func(ctx context.Context) error { return m.api.Volume(ctx, m.playback.Device.Volume-5, m.deviceID()) }, "Volume lowered", true)
+	case "m":
+		volume, message := 0, "Muted"
+		if m.playback.Device.Volume == 0 {
+			volume, message = m.lastVolume, "Unmuted"
+			if volume <= 0 {
+				volume = 50
+			}
+		} else {
+			m.lastVolume = m.playback.Device.Volume
+		}
+		return m, action(func(ctx context.Context) error { return m.api.Volume(ctx, volume, m.deviceID()) }, message, true)
 	case "s":
 		return m, action(func(ctx context.Context) error { return m.api.Shuffle(ctx, !m.playback.Shuffle, m.deviceID()) }, "Shuffle toggled", true)
 	case "r":
@@ -343,13 +388,15 @@ func (m Model) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, action(func(ctx context.Context) error { return m.api.Repeat(ctx, next, m.deviceID()) }, "Repeat: "+next, true)
 	case "a":
-		if uri := m.selectedURI(); uri != "" {
-			return m, action(func(ctx context.Context) error { return m.api.AddToQueue(ctx, uri, m.deviceID()) }, "Added to queue", false)
+		if track, ok := m.selectedTrack(); ok {
+			return m, queueAction(m.api, track.URI, m.deviceID(), track.Name)
 		}
+		m.setStatus("Choose a track before adding to the queue", true)
 	case "f":
-		if uri := m.selectedURI(); uri != "" {
-			return m, toggleSaved(m.api, uri)
+		if track, ok := m.selectedTrack(); ok {
+			return m, toggleSaved(m.api, track.URI)
 		}
+		m.setStatus("Choose a track to add to Liked Songs", true)
 	}
 	return m, nil
 }
@@ -366,7 +413,10 @@ func (m *Model) move(delta int) {
 func (m Model) itemCount() int {
 	switch m.view {
 	case NowPlaying:
-		return len(m.queue)
+		if m.playback.Item != nil {
+			return len(m.queue) + 1
+		}
+		return 0
 	case Search:
 		return len(m.searchResults)
 	case Devices:
@@ -387,29 +437,32 @@ func (m Model) itemCount() int {
 	return 0
 }
 
-func (m Model) selectedURI() string {
+func (m Model) selectedTrack() (spotify.Track, bool) {
 	if m.selected < 0 || m.selected >= m.itemCount() {
-		return ""
+		return spotify.Track{}, false
 	}
 	switch m.view {
 	case NowPlaying:
-		return m.queue[m.selected].URI
+		if m.selected == 0 && m.playback.Item != nil {
+			return *m.playback.Item, true
+		}
+		if m.selected > 0 && m.selected-1 < len(m.queue) {
+			return m.queue[m.selected-1], true
+		}
 	case Search:
-		return m.searchResults[m.selected].uri
+		item := m.searchResults[m.selected]
+		if item.kind == "track" {
+			return spotify.Track{ID: item.id, URI: item.uri, Name: item.name}, true
+		}
 	case Library:
 		if m.openPlaylist != nil {
-			return m.playlistItems[m.selected].Item.URI
+			return m.playlistItems[m.selected].Item, true
 		}
-		switch m.libraryTab {
-		case LibraryTracks:
-			return m.tracks[m.selected].Track.URI
-		case LibraryAlbums:
-			return m.albums[m.selected].Album.URI
-		default:
-			return m.playlists[m.selected].URI
+		if m.libraryTab == LibraryTracks {
+			return m.tracks[m.selected].Track, true
 		}
 	}
-	return ""
+	return spotify.Track{}, false
 }
 
 func (m Model) activateSelected() tea.Cmd {
@@ -422,8 +475,12 @@ func (m Model) activateSelected() tea.Cmd {
 		id := m.devices[m.selected].ID
 		return action(func(ctx context.Context) error { return m.api.Transfer(ctx, id, false) }, "Playback transferred", true)
 	case NowPlaying:
-		uri := m.queue[m.selected].URI
-		return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{uri}, "", device) }, "Playing queue selection", true)
+		track, ok := m.selectedTrack()
+		if !ok {
+			return nil
+		}
+		uri := track.URI
+		return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{uri}, "", device) }, "Playing "+track.Name, true)
 	case Search:
 		item := m.searchResults[m.selected]
 		if item.kind == "track" {
@@ -460,6 +517,25 @@ func (m Model) loadView() tea.Cmd {
 		return loadDevices(m.api)
 	case Library:
 		return loadLibrary(m.api)
+	}
+	return nil
+}
+
+func (m Model) refreshView() tea.Cmd {
+	switch m.view {
+	case Search:
+		if query := strings.TrimSpace(m.search.Value()); query != "" {
+			return searchCmd(m.api, query)
+		}
+	case Library:
+		if m.openPlaylist != nil {
+			return loadPlaylist(m.api, *m.openPlaylist)
+		}
+		return loadLibrary(m.api)
+	case Devices:
+		return loadDevices(m.api)
+	default:
+		return tea.Batch(loadPlayback(m.api, false), loadQueue(m.api))
 	}
 	return nil
 }
@@ -505,6 +581,12 @@ func delayedRefresh(api API) tea.Cmd {
 		return playbackMsg{v, err, false}
 	})
 }
+func delayedQueueRefresh(api API) tea.Cmd {
+	return tea.Tick(350*time.Millisecond, func(time.Time) tea.Msg {
+		v, err := api.Queue(context.Background())
+		return queueMsg{v, err}
+	})
+}
 
 func nextBackoff(current time.Duration, err error) time.Duration {
 	var apiErr *spotify.APIError
@@ -520,7 +602,18 @@ func action(fn func(context.Context) error, message string, refresh bool) tea.Cm
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
 		defer cancel()
-		return actionMsg{message, fn(ctx), refresh}
+		return actionMsg{message: message, err: fn(ctx), refresh: refresh}
+	}
+}
+func queueAction(api API, uri, deviceID, name string) tea.Cmd {
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		message := "Added to queue"
+		if name != "" {
+			message = "Queued " + name
+		}
+		return actionMsg{message: message, err: api.AddToQueue(ctx, uri, deviceID), refreshQueue: true}
 	}
 }
 func toggleSaved(api API, uri string) tea.Cmd {
@@ -539,6 +632,40 @@ func toggleSaved(api API, uri string) tea.Cmd {
 		}
 		return savedMsg{uri: uri, saved: !saved, err: err}
 	}
+}
+
+func checkSaved(api API, uris []string) tea.Cmd {
+	if len(uris) == 0 {
+		return nil
+	}
+	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		values, err := api.ContainsLibrary(ctx, uris)
+		return savedStateMsg{uris: uris, values: values, err: err}
+	}
+}
+
+func trackURIs(tracks []spotify.Track) []string {
+	uris := make([]string, 0, len(tracks))
+	seen := make(map[string]bool, len(tracks))
+	for _, track := range tracks {
+		if track.URI != "" && !seen[track.URI] {
+			seen[track.URI] = true
+			uris = append(uris, track.URI)
+		}
+	}
+	return uris
+}
+
+func searchTrackURIs(items []searchItem) []string {
+	uris := make([]string, 0, len(items))
+	for _, item := range items {
+		if item.kind == "track" && item.uri != "" {
+			uris = append(uris, item.uri)
+		}
+	}
+	return uris
 }
 
 func flattenSearch(result spotify.SearchResults) []searchItem {

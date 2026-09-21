@@ -85,15 +85,20 @@ sonicli --version
 | `n` / `p` | Next or previous track |
 | `h` / `l` | Seek backward or forward 10 seconds |
 | `+` / `-` | Change volume |
+| `m` | Mute or restore the previous volume |
 | `s` / `r` | Toggle shuffle or cycle repeat |
-| `a` | Add selection to queue |
-| `f` | Save or remove selection from the library |
+| `a` | Add the current or selected track to the queue |
+| `f` | Add or remove the current or selected track from Liked Songs |
+| `g` | Return to Now Playing |
+| `u` | Refresh the current view |
 | `d` | Choose a playback device |
 | `[` / `]` | Change library section |
 | `?` | Help |
 | `q` | Quit |
 
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
+
+The current track is selected by default in Now Playing. Press `f` to toggle it in Spotify's **Liked Songs**, or `a` to add it to the end of the queue. Move onto an upcoming track with `j`/`k` to apply the same actions to that selection. Liked tracks display a heart (`*` in ASCII mode), and the Library's **Liked Songs** section refreshes after every change.
 
 ## Easy local playback with librespot
 

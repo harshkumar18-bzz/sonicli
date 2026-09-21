@@ -79,10 +79,22 @@ func TestResponsiveViews(t *testing.T) {
 	}
 }
 
+func TestLikedMarkerUsesASCIIFallback(t *testing.T) {
+	m := New(fakeAPI{}, false)
+	m.width, m.height = 100, 28
+	m.loading = false
+	m.playback, _ = fakeAPI{}.Playback(context.Background())
+	m.saved[m.playback.Item.URI] = true
+	if got := m.View(); !strings.Contains(got, "Night Drive  *") {
+		t.Fatalf("liked marker missing from view:\n%s", got)
+	}
+}
+
 func TestNavigationAndSearchFocus(t *testing.T) {
 	m := New(fakeAPI{}, false)
 	m.width, m.height = 100, 28
 	m.loading = false
+	m.playback, _ = fakeAPI{}.Playback(context.Background())
 	m.queue = []spotify.Track{{Name: "one"}, {Name: "two"}}
 	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	m = updated.(Model)
@@ -93,6 +105,121 @@ func TestNavigationAndSearchFocus(t *testing.T) {
 	m = updated.(Model)
 	if m.view != Search || !m.search.Focused() {
 		t.Fatalf("search state: %s", m.DebugState())
+	}
+}
+
+type recordingAPI struct {
+	fakeAPI
+	queued   []string
+	saved    []string
+	removed  []string
+	volume   int
+	contains bool
+}
+
+func (f *recordingAPI) AddToQueue(_ context.Context, uri, _ string) error {
+	f.queued = append(f.queued, uri)
+	return nil
+}
+func (f *recordingAPI) SaveLibrary(_ context.Context, uris []string) error {
+	f.saved = append(f.saved, uris...)
+	return nil
+}
+func (f *recordingAPI) RemoveLibrary(_ context.Context, uris []string) error {
+	f.removed = append(f.removed, uris...)
+	return nil
+}
+func (f *recordingAPI) ContainsLibrary(_ context.Context, uris []string) ([]bool, error) {
+	values := make([]bool, len(uris))
+	for i := range values {
+		values[i] = f.contains
+	}
+	return values, nil
+}
+func (f *recordingAPI) Volume(_ context.Context, volume int, _ string) error {
+	f.volume = volume
+	return nil
+}
+
+func TestLikeAndQueueCurrentOrSelectedTrack(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+	m.queue = []spotify.Track{{URI: "spotify:track:2", Name: "Afterglow"}}
+
+	updated, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(Model)
+	msg := cmd()
+	updated, _ = m.Update(msg)
+	m = updated.(Model)
+	if len(api.queued) != 1 || api.queued[0] != "spotify:track:1" || !strings.Contains(m.status, "Night Drive") {
+		t.Fatalf("queue current = %#v, status %q", api.queued, m.status)
+	}
+
+	updated, _ = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = updated.(Model)
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(Model)
+	_ = cmd()
+	if len(api.queued) != 2 || api.queued[1] != "spotify:track:2" {
+		t.Fatalf("queue selection = %#v", api.queued)
+	}
+
+	m.selected = 0
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = updated.(Model)
+	msg = cmd()
+	updated, _ = m.Update(msg)
+	m = updated.(Model)
+	if len(api.saved) != 1 || api.saved[0] != "spotify:track:1" || !m.saved["spotify:track:1"] {
+		t.Fatalf("liked current = %#v, state %#v", api.saved, m.saved)
+	}
+
+	api.contains = true
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}})
+	m = updated.(Model)
+	msg = cmd()
+	updated, _ = m.Update(msg)
+	m = updated.(Model)
+	if len(api.removed) != 1 || m.saved["spotify:track:1"] || !strings.Contains(m.status, "Removed") {
+		t.Fatalf("unliked current = %#v, state %#v, status %q", api.removed, m.saved, m.status)
+	}
+}
+
+func TestTrackOnlyActionsAndBasicControls(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+	m.view = Search
+	m.searchResults = []searchItem{{kind: "album", name: "Signals", uri: "spotify:album:1"}}
+	updated, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	m = updated.(Model)
+	if cmd != nil || !strings.Contains(m.status, "Choose a track") || len(api.queued) != 0 {
+		t.Fatalf("album queue action: cmd=%v status=%q queue=%v", cmd != nil, m.status, api.queued)
+	}
+
+	m.view = NowPlaying
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = updated.(Model)
+	_ = cmd()
+	if api.volume != 0 || m.lastVolume != 45 {
+		t.Fatalf("mute volume=%d last=%d", api.volume, m.lastVolume)
+	}
+	m.playback.Device.Volume = 0
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+	m = updated.(Model)
+	_ = cmd()
+	if api.volume != 45 {
+		t.Fatalf("unmute volume=%d", api.volume)
+	}
+
+	m.view = Library
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}})
+	m = updated.(Model)
+	if m.view != NowPlaying || m.selected != 0 || cmd == nil {
+		t.Fatalf("go now playing: %s", m.DebugState())
 	}
 }
 

@@ -2,56 +2,56 @@
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
-   Night Drive
+ > Night Drive
    Example · Signals
 
    =-----------------------------------  0:10 / 3:20
    >  Desk  vol 45%  shuffle off  repeat
 
    Up next
- > Afterglow  Example
+   Afterglow  Example
 
 
 
 
 ──────────────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? help
+  a queue   f like   space play/pause   g now playing   ? help
 --- narrow ---
 SONICLI  Now Playing                   Spotify Connect
 ────────────────────────────────────────────────────────────
 
-   Night Drive
+ > Night Drive
    Example · Signals
 
    =-------------------------  0:10 / 3:20
    >  Desk  vol 45%  shuffle off  repeat
 
    Up next
- > Afterglow  Example
+   Afterglow  Example
 
 
 
 
 ────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? …
+  a queue   f like   space play/pause   g now playing   ?…
 --- no_color ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
-   Night Drive
+ > Night Drive
    Example · Signals
 
    =-----------------------------------  0:10 / 3:20
    >  Desk  vol 45%  shuffle off  repeat
 
    Up next
- > Afterglow  Example
+   Afterglow  Example
 
 
 
 
 ──────────────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? help
+  a queue   f like   space play/pause   g now playing   ? help
 --- empty ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ SONICLI  Now Playing                             Spotify Connect
 
 
 ──────────────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? help
+  a queue   f like   space play/pause   g now playing   ? help
 --- loading ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
@@ -87,37 +87,37 @@ SONICLI  Now Playing                             Spotify Connect
 
 
 ──────────────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? help
+  a queue   f like   space play/pause   g now playing   ? help
 --- offline ---
 SONICLI  Now Playing                OFFLINE · showing last state
 ──────────────────────────────────────────────────────────────────────
 
-   Night Drive
+ > Night Drive
    Example · Signals
 
    =-----------------------------------  0:10 / 3:20
    >  Desk  vol 45%  shuffle off  repeat
 
    Up next
- > Afterglow  Example
+   Afterglow  Example
 
 
 
 
 ──────────────────────────────────────────────────────────────────────
-  tab views   / search   space play/pause   n/p skip   ? help
+  a queue   f like   space play/pause   g now playing   ? help
 --- error ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
-   Night Drive
+ > Night Drive
    Example · Signals
 
    =-----------------------------------  0:10 / 3:20
    >  Desk  vol 45%  shuffle off  repeat
 
    Up next
- > Afterglow  Example
+   Afterglow  Example
 
 
 

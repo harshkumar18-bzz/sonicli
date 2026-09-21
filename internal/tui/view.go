@@ -102,13 +102,23 @@ func (m Model) nowPlayingView(p palette, height int) string {
 	if t.Explicit {
 		explicit = "  E"
 	}
-	title := lipgloss.NewStyle().Bold(true).Foreground(p.text).Render(t.Name)
+	liked := ""
+	if m.saved[t.URI] {
+		liked = m.symbol("  ♥", "  *")
+	}
+	titlePrefix := "  "
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(p.text)
+	if m.selected == 0 {
+		titlePrefix = m.symbol("› ", "> ")
+		titleStyle = titleStyle.Foreground(p.accent)
+	}
+	title := titleStyle.Render(t.Name + liked)
 	artist := lipgloss.NewStyle().Foreground(p.muted).Render(t.ArtistNames() + " · " + t.Album.Name + explicit)
 	progress := m.progressBar(t.Duration, m.playback.CurrentProgress(time.Now()), max(20, min(m.width-34, 58)), p)
 	meta := fmt.Sprintf("%s  %s  vol %d%%  shuffle %s  repeat %s", play, m.playback.Device.Name, m.playback.Device.Volume, onOff(m.playback.Shuffle), m.playback.Repeat)
-	lines := []string{"", "  " + title, "  " + artist, "", "  " + progress, "  " + lipgloss.NewStyle().Foreground(p.muted).Render(meta), "", lipgloss.NewStyle().Bold(true).Render("  Up next")}
+	lines := []string{"", titlePrefix + title, "  " + artist, "", "  " + progress, "  " + lipgloss.NewStyle().Foreground(p.muted).Render(meta), "", lipgloss.NewStyle().Bold(true).Render("  Up next")}
 	limit := max(1, height-len(lines)-2)
-	lines = append(lines, m.trackRows(m.queue, limit, p)...)
+	lines = append(lines, m.trackRows(m.queue, limit, 1, "  Queue is empty.", p)...)
 	return strings.Join(lines, "\n")
 }
 
@@ -123,7 +133,11 @@ func (m Model) searchView(p palette, height int) string {
 		start, end := window(m.selected, len(m.searchResults), limit)
 		for i := start; i < end; i++ {
 			item := m.searchResults[i]
-			name := fmt.Sprintf("%-9s %s", strings.ToUpper(item.kind), item.name)
+			name := item.name
+			if item.kind == "track" && m.saved[item.uri] {
+				name += m.symbol("  ♥", "  *")
+			}
+			name = fmt.Sprintf("%-9s %s", strings.ToUpper(item.kind), name)
 			lines = append(lines, m.row(i, name, item.subtitle, p))
 		}
 	}
@@ -132,14 +146,14 @@ func (m Model) searchView(p palette, height int) string {
 
 func (m Model) libraryView(p palette, height int) string {
 	if m.openPlaylist != nil {
-		lines := []string{"", lipgloss.NewStyle().Bold(true).Foreground(p.text).Render("  " + m.openPlaylist.Name), lipgloss.NewStyle().Foreground(p.muted).Render("  esc back · Enter play"), ""}
+		lines := []string{"", lipgloss.NewStyle().Bold(true).Foreground(p.text).Render("  " + m.openPlaylist.Name), lipgloss.NewStyle().Foreground(p.muted).Render("  esc back · Enter play · a queue · f like"), ""}
 		tracks := make([]spotify.Track, len(m.playlistItems))
 		for i := range m.playlistItems {
 			tracks[i] = m.playlistItems[i].Item
 		}
-		return strings.Join(append(lines, m.trackRows(tracks, max(1, height-len(lines)), p)...), "\n")
+		return strings.Join(append(lines, m.trackRows(tracks, max(1, height-len(lines)), 0, "  Playlist is empty.", p)...), "\n")
 	}
-	tabs := []string{"Tracks", "Albums", "Playlists"}
+	tabs := []string{"Liked Songs", "Albums", "Playlists"}
 	for i := range tabs {
 		if LibraryTab(i) == m.libraryTab {
 			tabs[i] = lipgloss.NewStyle().Foreground(p.accent).Bold(true).Render("[" + tabs[i] + "]")
@@ -153,7 +167,7 @@ func (m Model) libraryView(p palette, height int) string {
 		for i := range m.tracks {
 			tracks[i] = m.tracks[i].Track
 		}
-		lines = append(lines, m.trackRows(tracks, limit, p)...)
+		lines = append(lines, m.trackRows(tracks, limit, 0, "  No liked songs yet.", p)...)
 	case LibraryAlbums:
 		start, end := window(m.selected, len(m.albums), limit)
 		for i := start; i < end; i++ {
@@ -167,7 +181,7 @@ func (m Model) libraryView(p palette, height int) string {
 			lines = append(lines, m.row(i, pl.Name, pl.Owner.DisplayName, p))
 		}
 	}
-	if m.itemCount() == 0 {
+	if m.itemCount() == 0 && m.libraryTab != LibraryTracks {
 		lines = append(lines, "  No items found.")
 	}
 	return strings.Join(lines, "\n")
@@ -194,8 +208,9 @@ func (m Model) devicesView(p palette, height int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m Model) trackRows(tracks []spotify.Track, limit int, p palette) []string {
-	start, end := window(m.selected, len(tracks), limit)
+func (m Model) trackRows(tracks []spotify.Track, limit, selectionOffset int, empty string, p palette) []string {
+	selected := m.selected - selectionOffset
+	start, end := window(selected, len(tracks), limit)
 	rows := make([]string, 0, end-start)
 	for i := start; i < end; i++ {
 		t := tracks[i]
@@ -203,10 +218,14 @@ func (m Model) trackRows(tracks []spotify.Track, limit int, p palette) []string 
 		if t.Explicit {
 			suffix += " · E"
 		}
-		rows = append(rows, m.row(i, t.Name, suffix, p))
+		name := t.Name
+		if m.saved[t.URI] {
+			name += m.symbol("  ♥", "  *")
+		}
+		rows = append(rows, m.row(i+selectionOffset, name, suffix, p))
 	}
 	if len(rows) == 0 {
-		rows = append(rows, "  Queue is empty.")
+		rows = append(rows, empty)
 	}
 	return rows
 }
@@ -227,7 +246,7 @@ func (m Model) row(index int, primary, secondary string, p palette) string {
 }
 
 func (m Model) footerView(p palette) string {
-	text := "tab views   / search   space play/pause   n/p skip   ? help"
+	text := "a queue   f like   space play/pause   g now playing   ? help"
 	statusActive := m.status != "" && time.Now().Before(m.statusUntil)
 	if statusActive {
 		text = m.status
@@ -241,7 +260,7 @@ func (m Model) footerView(p palette) string {
 
 func (m Model) helpView() string {
 	keys := []string{
-		"SONICLI · KEYBOARD", "", "tab / shift+tab   next / previous view", "j k / arrows       move selection", "enter              play, open, or select", "/                  search", "space              play / pause", "n / p              next / previous track", "h / l              seek -10s / +10s", "+ / -              volume", "s / r              shuffle / repeat", "a                  add selection to queue", "f                  save / remove selection", "d                  choose playback device", "[ / ]              library section", "esc                back / close", "q                  quit", "", "Press ? or q to close help.",
+		"SONICLI · KEYBOARD", "", "tab / shift+tab   next / previous view", "j k / arrows       move selection", "enter              play, open, or select", "/                  search", "space              play / pause", "n / p              next / previous track", "h / l              seek -10s / +10s", "+ / -              volume", "m                  mute / unmute", "s / r              shuffle / repeat", "a                  add track to queue", "f                  like / unlike track", "g                  go to now playing", "u                  refresh current view", "d                  choose playback device", "[ / ]              library section", "esc                back / close", "q                  quit", "", "Press ? or q to close help.",
 	}
 	return lipgloss.NewStyle().Width(m.width).Height(m.height).Padding(1, 3).Render(strings.Join(keys, "\n"))
 }
