@@ -6,7 +6,7 @@ Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminal
 
 - A Spotify Premium account for playback controls.
 - A Spotify developer application owned by a Premium account.
-- At least one available Spotify Connect device, or Spotify Soloist for direct Linux audio playback.
+- At least one available Spotify Connect device, librespot, or Spotify Soloist for direct local audio playback.
 - A terminal of at least 60×16 cells; 92 columns or wider enables side navigation.
 
 Spotify development-mode applications support up to five allowlisted users. If somebody else uses your client ID, add their name and Spotify email under **Users Management** in the Spotify developer dashboard.
@@ -33,8 +33,10 @@ Sonicli uses Authorization Code with PKCE and a temporary callback listener on `
 ```text
 sonicli
 sonicli auth login|logout|status
-sonicli player pair|status
+sonicli player pair [librespot|soloist]
+sonicli player status
 sonicli config [--client-id ID] [--theme default] [--unicode true|false]
+               [--player auto|librespot|soloist|connect]
 sonicli completion bash|zsh|fish
 sonicli --help
 sonicli --version
@@ -62,7 +64,35 @@ sonicli --version
 
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
 
-## Direct local playback on Linux
+## Easy local playback with librespot
+
+Sonicli can manage a user-installed [librespot](https://github.com/librespot-org/librespot) process on Linux or macOS. librespot turns the computer into a Spotify Connect receiver, while Sonicli continues to use the official Web API for search, library, queue, and selecting music. A Spotify Premium account is required.
+
+1. Install the current librespot release and make sure `librespot` is in `PATH`. The upstream project supports installation with Rust:
+
+   ```sh
+   cargo install librespot
+   ```
+
+   Distribution packages can also be used when they provide a recent version with a working audio backend.
+2. Pair it once using librespot's own browser login:
+
+   ```sh
+   sonicli player pair librespot
+   ```
+
+3. Prefer it for local playback:
+
+   ```sh
+   sonicli config --player librespot
+   sonicli
+   ```
+
+Sonicli starts librespot for the TUI session, waits for its **Sonicli** Connect device, and directs selected tracks, albums, and playlists to it automatically. Choosing another device from the Devices view switches subsequent controls to that device. The reusable librespot credential is stored with user-only permissions under `~/.local/share/sonicli/librespot` and is never copied from Sonicli's Web API token.
+
+librespot is an unofficial, reverse-engineered Spotify client. Its upstream project warns that using it may violate Spotify's terms and that compatibility can change when Spotify changes its service. Install and enable it only if you accept that tradeoff. Use `sonicli config --player connect` to use only ordinary Spotify Connect devices, or use the official Soloist option below on Linux.
+
+## Official local playback on Linux
 
 Sonicli can play selected music through the Linux computer's default PipeWire or PulseAudio output using [Spotify Soloist](https://developer.spotify.com/documentation/soloist), Spotify's official headless player. macOS continues to use Spotify Connect control.
 
@@ -78,13 +108,13 @@ Sonicli can play selected music through the Linux computer's default PipeWire or
 4. Pair the local player once:
 
    ```sh
-   sonicli player pair
+   sonicli player pair soloist
    ```
 
    Open Spotify and select the **Sonicli** device when prompted.
 5. Run `sonicli`. It starts Soloist for the TUI session and routes selected tracks, albums, playlists, queue actions, and player controls directly to the computer's audio output.
 
-If Soloist is missing, unpaired, expired, or not configured, Sonicli prints a warning and safely falls back to controlling another Spotify Connect device. Player data is stored with user-only permissions under `~/.local/share/sonicli/soloist`; logs are written there when startup fails.
+With the default `player = "auto"` setting, Sonicli prefers a configured Soloist installation, then a paired librespot installation, then an existing Spotify Connect device. Select a backend explicitly with `sonicli config --player BACKEND`. Player data is stored with user-only permissions under `~/.local/share/sonicli`; backend logs are written there when startup fails.
 
 ## Development
 
@@ -98,4 +128,4 @@ The Spotify client is intentionally implemented directly against the current Web
 
 ## Limitations
 
-Sonicli delegates direct audio decoding to Spotify Soloist rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.
+Sonicli delegates direct audio decoding to a separately installed playback backend rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.

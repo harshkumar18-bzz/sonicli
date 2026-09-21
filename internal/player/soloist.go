@@ -32,7 +32,7 @@ type Soloist struct {
 	active bool
 }
 
-func Discover() (*Soloist, error) {
+func DiscoverSoloist() (*Soloist, error) {
 	if runtime.GOOS != "linux" {
 		return nil, fmt.Errorf("local playback requires Linux; %s continues to support Spotify Connect control", runtime.GOOS)
 	}
@@ -56,6 +56,9 @@ func Discover() (*Soloist, error) {
 		Name:     "Sonicli",
 	}, nil
 }
+
+// Discover is kept for callers built against the first local-player release.
+func Discover() (*Soloist, error) { return DiscoverSoloist() }
 
 func (s *Soloist) Configured() bool { return s != nil && s.Binary != "" && s.APIKey != "" }
 func (s *Soloist) Active() bool     { s.mu.Lock(); defer s.mu.Unlock(); return s.active }

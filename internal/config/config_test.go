@@ -8,7 +8,7 @@ import (
 
 func TestSaveLoadRoundTrip(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
-	want := Config{ClientID: "client-123", Theme: "default", Unicode: false}
+	want := Config{ClientID: "client-123", Theme: "default", Unicode: false, Player: "librespot"}
 	if err := Save(want); err != nil {
 		t.Fatal(err)
 	}

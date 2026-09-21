@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/harshkumar18-bzz/sonicli/internal/auth"
@@ -67,16 +68,8 @@ func run(args []string, in io.Reader, out, errOut io.Writer) error {
 		fmt.Fprintln(errOut, "Warning: system keychain unavailable; OAuth token is stored in a permission-restricted local file.")
 	}
 	client := spotify.New(manager)
-	var api tui.API = client
-	local, localErr := player.Discover()
-	if localErr == nil && local.Configured() {
-		if err := local.Start(context.Background()); err != nil {
-			fmt.Fprintln(errOut, "Local playback unavailable:", err)
-		} else {
-			defer local.Stop()
-			api = &player.API{Client: client, Local: local}
-		}
-	}
+	api, stopLocal := startLocalPlayer(cfg.Player, client, errOut)
+	defer stopLocal()
 	program := tea.NewProgram(tui.New(api, cfg.Unicode), tea.WithAltScreen())
 	_, err = program.Run()
 	return err
@@ -159,6 +152,7 @@ func runConfig(args []string, in io.Reader, out io.Writer) error {
 	clientID := set.String("client-id", "", "Spotify developer client ID")
 	theme := set.String("theme", "", "theme name (default)")
 	unicode := set.String("unicode", "", "true or false")
+	playback := set.String("player", "", "local player: auto, librespot, soloist, or connect")
 	if err := set.Parse(args); err != nil {
 		return err
 	}
@@ -189,6 +183,15 @@ func runConfig(args []string, in io.Reader, out io.Writer) error {
 		}
 		changed = true
 	}
+	if *playback != "" {
+		switch *playback {
+		case "auto", "librespot", "soloist", "connect":
+			cfg.Player = *playback
+		default:
+			return errors.New("--player must be auto, librespot, soloist, or connect")
+		}
+		changed = true
+	}
 	if changed {
 		if err := config.Save(cfg); err != nil {
 			return err
@@ -200,7 +203,7 @@ func runConfig(args []string, in io.Reader, out io.Writer) error {
 	if len(masked) > 8 {
 		masked = masked[:4] + "…" + masked[len(masked)-4:]
 	}
-	fmt.Fprintf(out, "config: %s\nclient_id: %s\ntheme: %s\nunicode: %t\n", path, emptyAs(masked, "not set"), cfg.Theme, cfg.Unicode)
+	fmt.Fprintf(out, "config: %s\nclient_id: %s\ntheme: %s\nunicode: %t\nplayer: %s\n", path, emptyAs(masked, "not set"), cfg.Theme, cfg.Unicode, cfg.Player)
 	return nil
 }
 
@@ -213,7 +216,8 @@ Usage:
   sonicli auth logout             Remove saved Spotify credentials
   sonicli auth status             Show connection and token storage
   sonicli config [options]        Show or update settings
-  sonicli player pair|status      Configure Linux local playback
+  sonicli player pair [BACKEND]   Pair librespot or Spotify Soloist
+  sonicli player status           Show local-player readiness
   sonicli completion SHELL        Print bash, zsh, or fish completion
   sonicli --version               Print the version
 
@@ -221,6 +225,7 @@ Config options:
   --client-id ID                  Set the Spotify developer client ID
   --theme default                 Select the built-in theme
   --unicode true|false            Toggle Unicode UI symbols
+  --player BACKEND                auto, librespot, soloist, or connect
 
 Inside the player press ? for all keyboard shortcuts.`)
 }
@@ -247,32 +252,129 @@ _arguments '1:command:(auth config player completion help version)' '*::arg:->ar
 }
 
 func runPlayer(args []string, out io.Writer) error {
-	if len(args) != 1 {
-		return errors.New("usage: sonicli player pair|status")
-	}
-	local, err := player.Discover()
-	if err != nil {
-		return fmt.Errorf("%w; install it from https://developer.spotify.com/documentation/soloist", err)
+	if len(args) < 1 || len(args) > 2 {
+		return errors.New("usage: sonicli player pair [librespot|soloist] | status")
 	}
 	switch args[0] {
 	case "pair":
-		if !local.Configured() {
-			return errors.New("set SOLOIST_API_KEY to your personal Spotify Soloist API key, then retry")
+		backend := "auto"
+		if len(args) == 2 {
+			backend = args[1]
 		}
-		fmt.Fprintln(out, "Pairing the local Sonicli player. Open Spotify and select the ‘Sonicli’ device when it appears.")
-		if err := local.Pair(context.Background(), out); err != nil {
-			return err
+		if backend != "auto" && backend != "librespot" && backend != "soloist" {
+			return errors.New("usage: sonicli player pair [librespot|soloist]")
 		}
-		fmt.Fprintln(out, "Local playback paired. Running `sonicli` will now start it automatically.")
-		return nil
+		return pairPlayer(backend, out)
 	case "status":
-		if err := local.Status(context.Background()); err != nil {
-			return err
+		if len(args) != 1 {
+			return errors.New("usage: sonicli player status")
 		}
-		fmt.Fprintln(out, "Spotify Soloist is running and reachable.")
+		showPlayerStatus(out)
 		return nil
 	default:
-		return errors.New("usage: sonicli player pair|status")
+		return errors.New("usage: sonicli player pair [librespot|soloist] | status")
+	}
+}
+
+func startLocalPlayer(preference string, client *spotify.Client, errOut io.Writer) (tui.API, func()) {
+	if preference == "" {
+		preference = "auto"
+	}
+	if preference == "connect" {
+		return client, func() {}
+	}
+	if preference == "auto" || preference == "soloist" {
+		local, err := player.DiscoverSoloist()
+		if err == nil && local.Configured() {
+			if err := local.Start(context.Background()); err == nil {
+				return &player.API{Client: client, Local: local}, func() { _ = local.Stop() }
+			} else {
+				fmt.Fprintln(errOut, "Spotify Soloist unavailable:", err)
+			}
+		} else if preference == "soloist" {
+			if err != nil {
+				fmt.Fprintln(errOut, "Spotify Soloist unavailable:", err)
+			} else {
+				fmt.Fprintln(errOut, "Spotify Soloist unavailable: set SOLOIST_API_KEY first")
+			}
+		}
+	}
+	if preference == "auto" || preference == "librespot" {
+		local, err := player.DiscoverLibrespot()
+		if err == nil && local.Paired() {
+			if err := local.Start(context.Background()); err == nil {
+				waitCtx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+				device, waitErr := player.WaitForDevice(waitCtx, client, local.Name)
+				cancel()
+				if waitErr == nil {
+					return &player.API{Client: client, TargetDeviceID: device.ID}, func() { _ = local.Stop() }
+				}
+				_ = local.Stop()
+				fmt.Fprintln(errOut, "librespot unavailable:", waitErr)
+			} else {
+				fmt.Fprintln(errOut, "librespot unavailable:", err)
+			}
+		} else if preference == "librespot" || (err == nil && !local.Paired()) {
+			if err != nil {
+				fmt.Fprintln(errOut, "librespot unavailable:", err)
+			} else {
+				fmt.Fprintln(errOut, "librespot is installed but not paired; run `sonicli player pair librespot`")
+			}
+		}
+	}
+	return client, func() {}
+}
+
+func pairPlayer(backend string, out io.Writer) error {
+	if backend == "auto" || backend == "soloist" {
+		local, err := player.DiscoverSoloist()
+		if err == nil && local.Configured() {
+			fmt.Fprintln(out, "Pairing Spotify Soloist. Open Spotify and select the ‘Sonicli’ device when it appears.")
+			if err := local.Pair(context.Background(), out); err != nil {
+				return err
+			}
+			fmt.Fprintln(out, "Spotify Soloist paired. Running `sonicli` will start it automatically.")
+			return nil
+		}
+		if backend == "soloist" {
+			if err != nil {
+				return fmt.Errorf("%w; install it from https://developer.spotify.com/documentation/soloist", err)
+			}
+			return errors.New("set SOLOIST_API_KEY to your personal Spotify Soloist API key, then retry")
+		}
+	}
+	local, err := player.DiscoverLibrespot()
+	if err != nil {
+		return fmt.Errorf("%w; install it from https://github.com/librespot-org/librespot", err)
+	}
+	if local.Paired() {
+		fmt.Fprintln(out, "librespot is already paired. Running `sonicli` will start it automatically.")
+		return nil
+	}
+	fmt.Fprintln(out, "Opening librespot’s Spotify login. Complete it in the browser; Sonicli will cache the pairing securely.")
+	if err := local.Pair(context.Background(), out); err != nil {
+		return err
+	}
+	fmt.Fprintln(out, "librespot paired. Running `sonicli` will now play selections on this computer.")
+	return nil
+}
+
+func showPlayerStatus(out io.Writer) {
+	if local, err := player.DiscoverSoloist(); err != nil {
+		fmt.Fprintln(out, "Spotify Soloist: not installed")
+	} else if !local.Configured() {
+		fmt.Fprintln(out, "Spotify Soloist: installed, SOLOIST_API_KEY not set")
+	} else if err := local.Status(context.Background()); err != nil {
+		fmt.Fprintln(out, "Spotify Soloist: configured, not currently reachable")
+	} else {
+		fmt.Fprintln(out, "Spotify Soloist: running")
+	}
+	if local, err := player.DiscoverLibrespot(); err != nil {
+		fmt.Fprintln(out, "librespot: not installed")
+	} else if local.Paired() {
+		fmt.Fprintln(out, "librespot: installed and paired")
+	} else {
+		fmt.Fprintln(out, "librespot: installed, pairing required")
 	}
 }
 

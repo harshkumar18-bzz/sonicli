@@ -16,10 +16,11 @@ type Config struct {
 	ClientID string
 	Theme    string
 	Unicode  bool
+	Player   string
 }
 
 func Default() Config {
-	return Config{Theme: "default", Unicode: true}
+	return Config{Theme: "default", Unicode: true, Player: "auto"}
 }
 
 func Dir() (string, error) {
@@ -80,6 +81,12 @@ func Load() (Config, error) {
 				return cfg, fmt.Errorf("config line %d: %w", lineNo+1, err)
 			}
 			cfg.Unicode = v
+		case "player":
+			v, err := strconv.Unquote(value)
+			if err != nil {
+				return cfg, fmt.Errorf("config line %d: %w", lineNo+1, err)
+			}
+			cfg.Player = v
 		}
 	}
 	return cfg, nil
@@ -93,7 +100,7 @@ func Save(cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	data := fmt.Sprintf("# Sonicli settings (OAuth tokens are stored separately).\nclient_id = %q\ntheme = %q\nunicode = %t\n", cfg.ClientID, cfg.Theme, cfg.Unicode)
+	data := fmt.Sprintf("# Sonicli settings (OAuth tokens are stored separately).\nclient_id = %q\ntheme = %q\nunicode = %t\nplayer = %q\n", cfg.ClientID, cfg.Theme, cfg.Unicode, cfg.Player)
 	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
 		return err
 	}
