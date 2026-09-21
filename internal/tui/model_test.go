@@ -12,7 +12,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/harsh/sonicli/internal/spotify"
+	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
 )
 
 type fakeAPI struct{}

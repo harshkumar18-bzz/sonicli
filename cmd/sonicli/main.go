@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/harsh/sonicli/internal/auth"
-	"github.com/harsh/sonicli/internal/config"
-	"github.com/harsh/sonicli/internal/spotify"
-	"github.com/harsh/sonicli/internal/tui"
+	"github.com/harshkumar18-bzz/sonicli/internal/auth"
+	"github.com/harshkumar18-bzz/sonicli/internal/config"
+	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
+	"github.com/harshkumar18-bzz/sonicli/internal/tui"
 )
 
 var version = "dev"

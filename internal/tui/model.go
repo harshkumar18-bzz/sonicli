@@ -10,7 +10,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/harsh/sonicli/internal/spotify"
+	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
 )
 
 type API interface {

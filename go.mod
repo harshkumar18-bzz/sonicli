@@ -1,4 +1,4 @@
-module github.com/harsh/sonicli
+module github.com/harshkumar18-bzz/sonicli
 
 go 1.24.0
 

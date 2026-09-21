@@ -14,7 +14,7 @@ Spotify development-mode applications support up to five allowlisted users. If s
 ## Install from source
 
 ```sh
-go install github.com/harsh/sonicli/cmd/sonicli@latest
+go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
 ```
 
 Release archives contain a single `sonicli` binary for Linux and macOS on AMD64 and ARM64.

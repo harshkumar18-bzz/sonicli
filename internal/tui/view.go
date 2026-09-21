@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/harsh/sonicli/internal/spotify"
+	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
 )
 
 type palette struct {
