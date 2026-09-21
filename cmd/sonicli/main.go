@@ -13,6 +13,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/harshkumar18-bzz/sonicli/internal/auth"
 	"github.com/harshkumar18-bzz/sonicli/internal/config"
+	"github.com/harshkumar18-bzz/sonicli/internal/player"
 	"github.com/harshkumar18-bzz/sonicli/internal/spotify"
 	"github.com/harshkumar18-bzz/sonicli/internal/tui"
 )
@@ -41,6 +42,8 @@ func run(args []string, in io.Reader, out, errOut io.Writer) error {
 			return runConfig(args[1:], in, out)
 		case "completion":
 			return runCompletion(args[1:], out)
+		case "player":
+			return runPlayer(args[1:], out)
 		default:
 			return fmt.Errorf("unknown command %q; use --help", args[0])
 		}
@@ -64,7 +67,17 @@ func run(args []string, in io.Reader, out, errOut io.Writer) error {
 		fmt.Fprintln(errOut, "Warning: system keychain unavailable; OAuth token is stored in a permission-restricted local file.")
 	}
 	client := spotify.New(manager)
-	program := tea.NewProgram(tui.New(client, cfg.Unicode), tea.WithAltScreen())
+	var api tui.API = client
+	local, localErr := player.Discover()
+	if localErr == nil && local.Configured() {
+		if err := local.Start(context.Background()); err != nil {
+			fmt.Fprintln(errOut, "Local playback unavailable:", err)
+		} else {
+			defer local.Stop()
+			api = &player.API{Client: client, Local: local}
+		}
+	}
+	program := tea.NewProgram(tui.New(api, cfg.Unicode), tea.WithAltScreen())
 	_, err = program.Run()
 	return err
 }
@@ -200,6 +213,7 @@ Usage:
   sonicli auth logout             Remove saved Spotify credentials
   sonicli auth status             Show connection and token storage
   sonicli config [options]        Show or update settings
+  sonicli player pair|status      Configure Linux local playback
   sonicli completion SHELL        Print bash, zsh, or fish completion
   sonicli --version               Print the version
 
@@ -217,19 +231,49 @@ func runCompletion(args []string, out io.Writer) error {
 	}
 	switch args[0] {
 	case "bash":
-		fmt.Fprint(out, `complete -W "auth config completion help version" sonicli
+		fmt.Fprint(out, `complete -W "auth config player completion help version" sonicli
 `)
 	case "zsh":
 		fmt.Fprint(out, `#compdef sonicli
-_arguments '1:command:(auth config completion help version)' '*::arg:->args'
+_arguments '1:command:(auth config player completion help version)' '*::arg:->args'
 `)
 	case "fish":
-		fmt.Fprint(out, `complete -c sonicli -f -a "auth config completion help version"
+		fmt.Fprint(out, `complete -c sonicli -f -a "auth config player completion help version"
 `)
 	default:
 		return errors.New("usage: sonicli completion bash|zsh|fish")
 	}
 	return nil
+}
+
+func runPlayer(args []string, out io.Writer) error {
+	if len(args) != 1 {
+		return errors.New("usage: sonicli player pair|status")
+	}
+	local, err := player.Discover()
+	if err != nil {
+		return fmt.Errorf("%w; install it from https://developer.spotify.com/documentation/soloist", err)
+	}
+	switch args[0] {
+	case "pair":
+		if !local.Configured() {
+			return errors.New("set SOLOIST_API_KEY to your personal Spotify Soloist API key, then retry")
+		}
+		fmt.Fprintln(out, "Pairing the local Sonicli player. Open Spotify and select the ‘Sonicli’ device when it appears.")
+		if err := local.Pair(context.Background(), out); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "Local playback paired. Running `sonicli` will now start it automatically.")
+		return nil
+	case "status":
+		if err := local.Status(context.Background()); err != nil {
+			return err
+		}
+		fmt.Fprintln(out, "Spotify Soloist is running and reachable.")
+		return nil
+	default:
+		return errors.New("usage: sonicli player pair|status")
+	}
 }
 
 func emptyAs(value, fallback string) string {

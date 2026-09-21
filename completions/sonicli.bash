@@ -1,1 +1,1 @@
-complete -W "auth config completion help version" sonicli
+complete -W "auth config player completion help version" sonicli

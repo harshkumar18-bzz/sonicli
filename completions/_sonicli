@@ -1,2 +1,2 @@
 #compdef sonicli
-_arguments '1:command:(auth config completion help version)' '*::arg:->args'
+_arguments '1:command:(auth config player completion help version)' '*::arg:->args'

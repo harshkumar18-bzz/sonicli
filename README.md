@@ -6,7 +6,7 @@ Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminal
 
 - A Spotify Premium account for playback controls.
 - A Spotify developer application owned by a Premium account.
-- At least one available Spotify Connect device.
+- At least one available Spotify Connect device, or Spotify Soloist for direct Linux audio playback.
 - A terminal of at least 60×16 cells; 92 columns or wider enables side navigation.
 
 Spotify development-mode applications support up to five allowlisted users. If somebody else uses your client ID, add their name and Spotify email under **Users Management** in the Spotify developer dashboard.
@@ -33,6 +33,7 @@ Sonicli uses Authorization Code with PKCE and a temporary callback listener on `
 ```text
 sonicli
 sonicli auth login|logout|status
+sonicli player pair|status
 sonicli config [--client-id ID] [--theme default] [--unicode true|false]
 sonicli completion bash|zsh|fish
 sonicli --help
@@ -61,6 +62,30 @@ sonicli --version
 
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
 
+## Direct local playback on Linux
+
+Sonicli can play selected music through the Linux computer's default PipeWire or PulseAudio output using [Spotify Soloist](https://developer.spotify.com/documentation/soloist), Spotify's official headless player. macOS continues to use Spotify Connect control.
+
+1. Generate your personal **Spotify Soloist API Key** and download the current Soloist build from [Spotify's Soloist instructions](https://developer.spotify.com/documentation/soloist). Soloist builds expire after 90 days and must be updated from Spotify.
+2. Put the `soloist` executable somewhere in `PATH`, for example `~/.local/bin/soloist`.
+3. Keep the API key private and expose it to Sonicli:
+
+   ```sh
+   export SOLOIST_API_KEY='your-personal-key'
+   ```
+
+   Add that export to a private shell configuration or secret manager if you want it available after reboot. Do not commit the key.
+4. Pair the local player once:
+
+   ```sh
+   sonicli player pair
+   ```
+
+   Open Spotify and select the **Sonicli** device when prompted.
+5. Run `sonicli`. It starts Soloist for the TUI session and routes selected tracks, albums, playlists, queue actions, and player controls directly to the computer's audio output.
+
+If Soloist is missing, unpaired, expired, or not configured, Sonicli prints a warning and safely falls back to controlling another Spotify Connect device. Player data is stored with user-only permissions under `~/.local/share/sonicli/soloist`; logs are written there when startup fails.
+
 ## Development
 
 ```sh
@@ -73,4 +98,4 @@ The Spotify client is intentionally implemented directly against the current Web
 
 ## Limitations
 
-Sonicli does not stream audio itself, show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.
+Sonicli delegates direct audio decoding to Spotify Soloist rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.

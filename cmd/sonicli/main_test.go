@@ -13,7 +13,7 @@ func TestHelpVersionAndCompletion(t *testing.T) {
 	}{
 		{[]string{"--help"}, "minimal Spotify terminal player"},
 		{[]string{"--version"}, "sonicli dev"},
-		{[]string{"completion", "bash"}, "complete -W"},
+		{[]string{"completion", "bash"}, "player"},
 		{[]string{"completion", "zsh"}, "#compdef sonicli"},
 		{[]string{"completion", "fish"}, "complete -c sonicli"},
 	}
