@@ -1,6 +1,6 @@
 # Sonicli
 
-Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminals. It controls an existing Spotify Connect device: the Spotify desktop app, phone, web player, speaker, or another active device.
+Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminals. It can control an existing Spotify Connect device or play directly through the current computer using a separately installed local playback backend.
 
 ## Requirements
 
@@ -15,9 +15,40 @@ Spotify development-mode applications support up to five allowlisted users. If s
 
 ```sh
 go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
+export PATH="$PATH:$(go env GOPATH)/bin"
+sonicli --help
 ```
 
+Add the `PATH` export to `~/.bashrc`, `~/.zshrc`, or the equivalent file for your shell so that `sonicli` remains available after opening a new terminal. If installation succeeds but the shell says `sonicli: command not found`, the missing `PATH` entry is normally the cause.
+
 Release archives contain a single `sonicli` binary for Linux and macOS on AMD64 and ARM64.
+
+## Quick start with local playback on Ubuntu or Debian
+
+This complete setup installs Sonicli and librespot, connects both logins, and makes selected music play through the current computer:
+
+```sh
+# Install Sonicli.
+go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
+
+# Install librespot's Linux build dependencies and librespot itself.
+sudo apt-get update
+sudo apt-get install -y build-essential libasound2-dev
+cargo install librespot --locked
+
+# Make both installed commands visible in this shell.
+export PATH="$PATH:$(go env GOPATH)/bin:$HOME/.cargo/bin"
+
+# Pair local playback and select it as Sonicli's backend.
+sonicli player pair librespot
+sonicli config --player librespot
+
+# Confirm the setup, then launch.
+sonicli player status
+sonicli
+```
+
+The first `sonicli` login requests the Spotify developer client ID described below. The librespot pairing is a separate browser login that creates a reusable local playback credential.
 
 ## Spotify setup
 
@@ -71,9 +102,10 @@ Sonicli can manage a user-installed [librespot](https://github.com/librespot-org
 1. Install the current librespot release and make sure `librespot` is in `PATH`. On Debian or Ubuntu, install the default Rodio/ALSA build dependencies first, as required by the upstream project:
 
    ```sh
-   sudo apt-get install build-essential libasound2-dev
+   sudo apt-get update
+   sudo apt-get install -y build-essential libasound2-dev
    cargo install librespot --locked
-   export PATH="$PATH:$HOME/.cargo/bin"
+   export PATH="$PATH:$(go env GOPATH)/bin:$HOME/.cargo/bin"
    ```
 
    On macOS, `cargo install librespot --locked` is normally sufficient. Distribution packages can also be used when they provide a recent version with a working audio backend.
@@ -117,6 +149,65 @@ Sonicli can play selected music through the Linux computer's default PipeWire or
 5. Run `sonicli`. It starts Soloist for the TUI session and routes selected tracks, albums, playlists, queue actions, and player controls directly to the computer's audio output.
 
 With the default `player = "auto"` setting, Sonicli prefers a configured Soloist installation, then a paired librespot installation, then an existing Spotify Connect device. Select a backend explicitly with `sonicli config --player BACKEND`. Player data is stored with user-only permissions under `~/.local/share/sonicli`; backend logs are written there when startup fails.
+
+## Troubleshooting
+
+### `sonicli: command not found`
+
+Confirm where Go installed the binary and add that directory to `PATH`:
+
+```sh
+ls "$(go env GOPATH)/bin/sonicli"
+export PATH="$PATH:$(go env GOPATH)/bin"
+```
+
+### `librespot is selected but unavailable`
+
+Sonicli does not bundle librespot. Confirm that the executable is installed and visible:
+
+```sh
+command -v librespot
+librespot --version
+sonicli player status
+```
+
+If `command -v librespot` produces no output, follow the librespot installation steps above. If Cargo installed it but it is still not found, add `$HOME/.cargo/bin` to `PATH`.
+
+### `No active device found`
+
+This means Spotify has no reachable playback target. For direct local playback, verify and repair the librespot setup:
+
+```sh
+sonicli player status
+sonicli player pair librespot
+sonicli config --player librespot
+sonicli
+```
+
+For ordinary Spotify Connect playback, open Spotify on a phone, browser, desktop app, or speaker, start that device, and select it from Sonicli's **Devices** view by pressing `d`.
+
+### librespot starts but does not appear
+
+Inspect its log for audio, authentication, or network errors:
+
+```sh
+tail -n 100 ~/.local/share/sonicli/librespot/sonicli-librespot.log
+```
+
+Then confirm that the Spotify Web API login and local-player pairing are both ready:
+
+```sh
+sonicli auth status
+sonicli player status
+```
+
+### Disable local playback
+
+To use only another Spotify Connect device without starting librespot or Soloist:
+
+```sh
+sonicli config --player connect
+```
 
 ## Development
 
