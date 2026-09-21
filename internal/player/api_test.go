@@ -78,6 +78,7 @@ func TestLocalPlaybackCommands(t *testing.T) {
 	ctx := context.Background()
 	operations := []func() error{
 		func() error { return api.Play(ctx, []string{"spotify:track:1"}, "", "") },
+		func() error { return api.Play(ctx, []string{"spotify:track:3"}, "spotify:album:4", "") },
 		func() error { return api.Play(ctx, nil, "spotify:playlist:2", "") },
 		func() error { return api.Play(ctx, nil, "", "") },
 		func() error { return api.Pause(ctx, "") },
@@ -95,7 +96,7 @@ func TestLocalPlaybackCommands(t *testing.T) {
 		}
 	}
 	want := [][]string{
-		{"play", "spotify:track:1"}, {"play", "spotify:playlist:2"}, {"play"}, {"pause"},
+		{"play", "spotify:track:1"}, {"play", "spotify:track:3"}, {"play", "spotify:playlist:2"}, {"play"}, {"pause"},
 		{"next"}, {"prev"}, {"seek", "1234"}, {"volume", "100"}, {"shuffle", "true"},
 		{"repeat", "track"}, {"add-to-queue", "spotify:track:3"},
 	}

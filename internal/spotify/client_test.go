@@ -122,6 +122,35 @@ func TestClientOperations(t *testing.T) {
 	}
 }
 
+func TestPlayContextIncludesSelectedTrackOffset(t *testing.T) {
+	var body map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPut || r.URL.Path != "/me/player/play" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatal(err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	c := New(&fakeTokens{})
+	c.BaseURL = server.URL
+	if err := c.Play(context.Background(), []string{"spotify:track:7"}, "spotify:album:9", ""); err != nil {
+		t.Fatal(err)
+	}
+	if body["context_uri"] != "spotify:album:9" {
+		t.Fatalf("context_uri = %#v", body["context_uri"])
+	}
+	offset, ok := body["offset"].(map[string]any)
+	if !ok || offset["uri"] != "spotify:track:7" {
+		t.Fatalf("offset = %#v", body["offset"])
+	}
+	if _, ok := body["uris"]; ok {
+		t.Fatalf("context request unexpectedly contains uris: %#v", body)
+	}
+}
+
 func TestClientRefreshesOnceOnUnauthorized(t *testing.T) {
 	tokens := &fakeTokens{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

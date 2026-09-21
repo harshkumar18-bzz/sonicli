@@ -2,16 +2,16 @@
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
+   CURRENT TRACK  PLAYING
  > Night Drive
-   Example
-   Signals
+   Example  |  Signals
 
-   0:10  ==--------------------------------------  -3:10
-   PLAYING  |  Desk  |  VOL 45%
-   SHUFFLE OFF  |  REPEAT OFF
+   0:10  ==--------------------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
 
-   Up next  1
-   Enter play now  ·  a add  ·  x remove
+   --------------------------------------------------------------
+   UP NEXT  1
+   Enter play  ·  a add  ·  x remove
    Afterglow  Example
 
 ──────────────────────────────────────────────────────────────────────
@@ -20,16 +20,16 @@ SONICLI  Now Playing                             Spotify Connect
 SONICLI  Now Playing                   Spotify Connect
 ────────────────────────────────────────────────────────────
 
+   CURRENT TRACK  PLAYING
  > Night Drive
-   Example
-   Signals
+   Example  |  Signals
 
-   0:10  =-----------------------------  -3:10
-   PLAYING  |  Desk  |  VOL 45%
-   SHUFFLE OFF  |  REPEAT OFF
+   0:10  =-----------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
 
-   Up next  1
-   Enter play now  ·  a add  ·  x remove
+   ----------------------------------------------------
+   UP NEXT  1
+   Enter play  ·  a add  ·  x remove
    Afterglow  Example
 
 ────────────────────────────────────────────────────────────
@@ -38,16 +38,16 @@ SONICLI  Now Playing                   Spotify Connect
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
+   CURRENT TRACK  PLAYING
  > Night Drive
-   Example
-   Signals
+   Example  |  Signals
 
-   0:10  ==--------------------------------------  -3:10
-   PLAYING  |  Desk  |  VOL 45%
-   SHUFFLE OFF  |  REPEAT OFF
+   0:10  ==--------------------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
 
-   Up next  1
-   Enter play now  ·  a add  ·  x remove
+   --------------------------------------------------------------
+   UP NEXT  1
+   Enter play  ·  a add  ·  x remove
    Afterglow  Example
 
 ──────────────────────────────────────────────────────────────────────
@@ -92,16 +92,16 @@ SONICLI  Now Playing                             Spotify Connect
 SONICLI  Now Playing                OFFLINE · showing last state
 ──────────────────────────────────────────────────────────────────────
 
+   CURRENT TRACK  PLAYING
  > Night Drive
-   Example
-   Signals
+   Example  |  Signals
 
-   0:10  ==--------------------------------------  -3:10
-   PLAYING  |  Desk  |  VOL 45%
-   SHUFFLE OFF  |  REPEAT OFF
+   0:10  ==--------------------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
 
-   Up next  1
-   Enter play now  ·  a add  ·  x remove
+   --------------------------------------------------------------
+   UP NEXT  1
+   Enter play  ·  a add  ·  x remove
    Afterglow  Example
 
 ──────────────────────────────────────────────────────────────────────
@@ -110,16 +110,16 @@ SONICLI  Now Playing                OFFLINE · showing last state
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────
 
+   CURRENT TRACK  PLAYING
  > Night Drive
-   Example
-   Signals
+   Example  |  Signals
 
-   0:10  ==--------------------------------------  -3:10
-   PLAYING  |  Desk  |  VOL 45%
-   SHUFFLE OFF  |  REPEAT OFF
+   0:10  ==--------------------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
 
-   Up next  1
-   Enter play now  ·  a add  ·  x remove
+   --------------------------------------------------------------
+   UP NEXT  1
+   Enter play  ·  a add  ·  x remove
    Afterglow  Example
 
 ──────────────────────────────────────────────────────────────────────

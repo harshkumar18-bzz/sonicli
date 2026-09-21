@@ -25,9 +25,11 @@ type API struct {
 
 func (a *API) Play(ctx context.Context, uris []string, contextURI, deviceID string) error {
 	if a.localActive() {
-		uri := contextURI
-		if uri == "" && len(uris) > 0 {
+		uri := ""
+		if len(uris) > 0 {
 			uri = uris[0]
+		} else {
+			uri = contextURI
 		}
 		args := []string{"play"}
 		if uri != "" {

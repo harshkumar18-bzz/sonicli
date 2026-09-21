@@ -114,6 +114,9 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
   reorder endpoint. Keep queue removal labeled as a session-local Sonicli
   action that hides an occurrence and auto-skips it when reached; never claim
   that it mutates Spotify's server-side queue.
+- When a selected track has an album or playlist context, start that context
+  with the track URI as the offset. Do not reduce contextual playback to a
+  one-item `uris` request; Spotify needs the context to continue its queue.
 - Preserve the last usable TUI state during transient offline failures.
 
 ### Local playback
@@ -127,7 +130,8 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
   own interactive OAuth pairing and cached `credentials.json`.
 - Keep librespot data and credential permissions restricted. Sonicli starts
   the process for the TUI session, waits for its `Sonicli` Connect device,
-  targets playback to that device, and stops the child process on exit.
+  targets playback to that device, enables autoplay for continued playback,
+  and stops the child process on exit.
 - Soloist remains optional and must continue to use the user-provided binary
   and `SOLOIST_API_KEY`; do not download or redistribute it.
 - Selecting another device in the Devices view must update subsequent Web API
@@ -142,8 +146,9 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
 - Keep the minimum-size message, narrow single-pane layout, normal side-nav
   layout, `NO_COLOR` behavior, and ASCII fallback working.
 - Poll playback approximately every four seconds while playing and less often
-  while paused. Continue interpolating progress locally and render frame ticks
-  independently so the timer can update smoothly without extra API calls.
+  while paused. Continue interpolating progress locally and render 100 ms
+  frame ticks independently so the timer can update smoothly without extra
+  API calls.
 - Status and error notices should not block navigation or close the TUI.
 
 ## Making a change

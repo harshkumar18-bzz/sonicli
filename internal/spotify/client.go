@@ -134,6 +134,11 @@ func (c *Client) Play(ctx context.Context, uris []string, contextURI, deviceID s
 	body := map[string]any{}
 	if contextURI != "" {
 		body["context_uri"] = contextURI
+		// Starting a context with an offset preserves Spotify's natural
+		// continuation (and autoplay) while still playing the selected track.
+		if len(uris) > 0 {
+			body["offset"] = map[string]string{"uri": uris[0]}
+		}
 	} else if len(uris) > 0 {
 		body["uris"] = uris
 	}

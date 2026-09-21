@@ -186,6 +186,7 @@ func (l *Librespot) args(oauth bool) []string {
 		"--name", l.Name,
 		"--device-type", "computer",
 		"--bitrate", "320",
+		"--autoplay", "on",
 		"--cache", l.CacheDir,
 		"--system-cache", l.DataDir,
 	}

@@ -18,7 +18,7 @@ import (
 type fakeAPI struct{}
 
 func (fakeAPI) Playback(context.Context) (spotify.Playback, error) {
-	return spotify.Playback{Playing: true, Progress: 10_000, Device: spotify.Device{ID: "d1", Name: "Desk", Volume: 45}, Item: &spotify.Track{URI: "spotify:track:1", Name: "Night Drive", Duration: 200_000, Artists: []spotify.Artist{{Name: "Example"}}, Album: spotify.Album{Name: "Signals"}}}, nil
+	return spotify.Playback{Playing: true, Progress: 10_000, Device: spotify.Device{ID: "d1", Name: "Desk", Volume: 45}, Item: &spotify.Track{URI: "spotify:track:1", Name: "Night Drive", Duration: 200_000, Artists: []spotify.Artist{{Name: "Example"}}, Album: spotify.Album{URI: "spotify:album:1", Name: "Signals"}}}, nil
 }
 func (fakeAPI) Queue(context.Context) (spotify.Queue, error) {
 	return spotify.Queue{Items: []spotify.Track{{URI: "spotify:track:2", Name: "Afterglow", Artists: []spotify.Artist{{Name: "Example"}}}}}, nil
@@ -79,14 +79,15 @@ func TestResponsiveViews(t *testing.T) {
 	}
 }
 
-func TestLikedMarkerUsesASCIIFallback(t *testing.T) {
+func TestLikedLabelHasNoHeartGlyph(t *testing.T) {
 	m := New(fakeAPI{}, false)
 	m.width, m.height = 100, 28
 	m.loading = false
 	m.playback, _ = fakeAPI{}.Playback(context.Background())
 	m.saved[m.playback.Item.URI] = true
-	if got := m.View(); !strings.Contains(got, "Night Drive  *") {
-		t.Fatalf("liked marker missing from view:\n%s", got)
+	got := m.View()
+	if !strings.Contains(got, "[LIKED]") || strings.Contains(got, "♥") {
+		t.Fatalf("liked label is incorrect:\n%s", got)
 	}
 }
 
@@ -110,12 +111,20 @@ func TestNavigationAndSearchFocus(t *testing.T) {
 
 type recordingAPI struct {
 	fakeAPI
-	queued   []string
-	saved    []string
-	removed  []string
-	volume   int
-	next     int
-	contains bool
+	queued       []string
+	saved        []string
+	removed      []string
+	playedURIs   [][]string
+	playContexts []string
+	volume       int
+	next         int
+	contains     bool
+}
+
+func (f *recordingAPI) Play(_ context.Context, uris []string, contextURI, _ string) error {
+	f.playedURIs = append(f.playedURIs, append([]string(nil), uris...))
+	f.playContexts = append(f.playContexts, contextURI)
+	return nil
 }
 
 func (f *recordingAPI) AddToQueue(_ context.Context, uri, _ string) error {
@@ -288,6 +297,9 @@ func TestRemoveQueueRejectsAmbiguousDuplicate(t *testing.T) {
 }
 
 func TestFrameTickKeepsProgressRenderingResponsive(t *testing.T) {
+	if frameInterval != 100*time.Millisecond {
+		t.Fatalf("frame interval = %s", frameInterval)
+	}
 	m := New(fakeAPI{}, false)
 	updated, cmd := m.Update(frameMsg(time.Now()))
 	if _, ok := updated.(Model); !ok || cmd == nil {
@@ -296,10 +308,53 @@ func TestFrameTickKeepsProgressRenderingResponsive(t *testing.T) {
 }
 
 func TestFlattenSearchHandlesNullPlaylist(t *testing.T) {
-	result := spotify.SearchResults{Tracks: spotify.Page[spotify.Track]{Items: []spotify.Track{{Name: "Track"}}}, Playlists: spotify.Page[*spotify.Playlist]{Items: []*spotify.Playlist{nil}}}
+	result := spotify.SearchResults{Tracks: spotify.Page[spotify.Track]{Items: []spotify.Track{{Name: "Track", Album: spotify.Album{URI: "spotify:album:1"}}}}, Playlists: spotify.Page[*spotify.Playlist]{Items: []*spotify.Playlist{nil}}}
 	items := flattenSearch(result)
-	if len(items) != 1 || items[0].name != "Track" {
+	if len(items) != 1 || items[0].name != "Track" || items[0].contextURI != "spotify:album:1" {
 		t.Fatalf("items = %#v", items)
+	}
+}
+
+func TestSelectedTracksPreserveSpotifyContext(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+
+	m.view = Search
+	m.searchResults = []searchItem{{kind: "track", name: "Found", uri: "spotify:track:2", contextURI: "spotify:album:2"}}
+	_ = m.activateSelected()()
+
+	m.view = Library
+	m.openPlaylist = &spotify.Playlist{URI: "spotify:playlist:3", Name: "Mix"}
+	m.playlistItems = []spotify.PlaylistItem{{Item: spotify.Track{URI: "spotify:track:3"}}}
+	_ = m.activateSelected()()
+
+	m.openPlaylist = nil
+	m.libraryTab = LibraryTracks
+	m.tracks = []spotify.SavedTrack{{Track: spotify.Track{URI: "spotify:track:4", Album: spotify.Album{URI: "spotify:album:4"}}}}
+	_ = m.activateSelected()()
+
+	want := []string{"spotify:album:2", "spotify:playlist:3", "spotify:album:4"}
+	if fmt.Sprint(api.playContexts) != fmt.Sprint(want) {
+		t.Fatalf("play contexts = %#v, want %#v", api.playContexts, want)
+	}
+	for i, uris := range api.playedURIs {
+		if len(uris) != 1 || uris[0] == "" {
+			t.Fatalf("play call %d URIs = %#v", i, uris)
+		}
+	}
+}
+
+func TestContentWidthAccountsForNavigationRail(t *testing.T) {
+	m := New(fakeAPI{}, false)
+	m.width = 100
+	if got := m.contentWidth(); got != 74 {
+		t.Fatalf("wide content width = %d", got)
+	}
+	m.width = 70
+	if got := m.contentWidth(); got != 66 {
+		t.Fatalf("narrow content width = %d", got)
 	}
 }
 

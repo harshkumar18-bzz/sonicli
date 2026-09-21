@@ -58,7 +58,13 @@ const (
 
 type searchItem struct {
 	kind, name, subtitle, uri, id string
+	contextURI                    string
 }
+
+const (
+	frameInterval      = 100 * time.Millisecond
+	commandRefreshWait = 100 * time.Millisecond
+)
 
 type Model struct {
 	api           API
@@ -167,7 +173,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
-		m.search.Width = max(16, msg.Width-10)
+		m.search.Width = max(16, m.contentWidth()-4)
 	case tickMsg:
 		cmds = append(cmds, loadPlayback(m.api, true))
 	case frameMsg:
@@ -536,7 +542,7 @@ func (m Model) activateSelected() tea.Cmd {
 	case Search:
 		item := m.searchResults[m.selected]
 		if item.kind == "track" {
-			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{item.uri}, "", device) }, "Playing "+item.name, true)
+			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{item.uri}, item.contextURI, device) }, "Playing "+item.name, true)
 		}
 		if item.kind == "album" || item.kind == "artist" || item.kind == "playlist" {
 			return action(func(ctx context.Context) error { return m.api.Play(ctx, nil, item.uri, device) }, "Playing "+item.name, true)
@@ -544,12 +550,13 @@ func (m Model) activateSelected() tea.Cmd {
 	case Library:
 		if m.openPlaylist != nil {
 			uri := m.playlistItems[m.selected].Item.URI
-			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{uri}, "", device) }, "Playing track", true)
+			contextURI := m.openPlaylist.URI
+			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{uri}, contextURI, device) }, "Playing track", true)
 		}
 		switch m.libraryTab {
 		case LibraryTracks:
-			uri := m.tracks[m.selected].Track.URI
-			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{uri}, "", device) }, "Playing track", true)
+			track := m.tracks[m.selected].Track
+			return action(func(ctx context.Context) error { return m.api.Play(ctx, []string{track.URI}, track.Album.URI, device) }, "Playing track", true)
 		case LibraryAlbums:
 			uri := m.albums[m.selected].Album.URI
 			return action(func(ctx context.Context) error { return m.api.Play(ctx, nil, uri, device) }, "Playing album", true)
@@ -618,7 +625,7 @@ func tickAfter(d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(t time.Time) tea.Msg { return tickMsg(t) })
 }
 func frameAfter() tea.Cmd {
-	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg { return frameMsg(t) })
+	return tea.Tick(frameInterval, func(t time.Time) tea.Msg { return frameMsg(t) })
 }
 func loadPlayback(api API, poll bool) tea.Cmd {
 	return func() tea.Msg { v, err := api.Playback(context.Background()); return playbackMsg{v, err, poll} }
@@ -647,13 +654,13 @@ func loadPlaylist(api API, p spotify.Playlist) tea.Cmd {
 	}
 }
 func delayedRefresh(api API) tea.Cmd {
-	return tea.Tick(350*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(commandRefreshWait, func(time.Time) tea.Msg {
 		v, err := api.Playback(context.Background())
 		return playbackMsg{v, err, false}
 	})
 }
 func delayedQueueRefresh(api API) tea.Cmd {
-	return tea.Tick(350*time.Millisecond, func(time.Time) tea.Msg {
+	return tea.Tick(commandRefreshWait, func(time.Time) tea.Msg {
 		v, err := api.Queue(context.Background())
 		return queueMsg{v, err}
 	})
@@ -742,17 +749,17 @@ func searchTrackURIs(items []searchItem) []string {
 func flattenSearch(result spotify.SearchResults) []searchItem {
 	items := make([]searchItem, 0, 40)
 	for _, track := range result.Tracks.Items {
-		items = append(items, searchItem{"track", track.Name, track.ArtistNames(), track.URI, track.ID})
+		items = append(items, searchItem{kind: "track", name: track.Name, subtitle: track.ArtistNames(), uri: track.URI, id: track.ID, contextURI: track.Album.URI})
 	}
 	for _, album := range result.Albums.Items {
-		items = append(items, searchItem{"album", album.Name, artists(album.Artists), album.URI, album.ID})
+		items = append(items, searchItem{kind: "album", name: album.Name, subtitle: artists(album.Artists), uri: album.URI, id: album.ID})
 	}
 	for _, artist := range result.Artists.Items {
-		items = append(items, searchItem{"artist", artist.Name, "Artist", artist.URI, artist.ID})
+		items = append(items, searchItem{kind: "artist", name: artist.Name, subtitle: "Artist", uri: artist.URI, id: artist.ID})
 	}
 	for _, playlist := range result.Playlists.Items {
 		if playlist != nil {
-			items = append(items, searchItem{"playlist", playlist.Name, playlist.Owner.DisplayName, playlist.URI, playlist.ID})
+			items = append(items, searchItem{kind: "playlist", name: playlist.Name, subtitle: playlist.Owner.DisplayName, uri: playlist.URI, id: playlist.ID})
 		}
 	}
 	return items

@@ -17,6 +17,7 @@ func TestLibrespotArgumentsAndPairingState(t *testing.T) {
 	}
 	want := []string{
 		"--name", "Sonicli", "--device-type", "computer", "--bitrate", "320",
+		"--autoplay", "on",
 		"--cache", local.CacheDir, "--system-cache", local.DataDir, "--enable-oauth",
 	}
 	if got := local.args(true); !reflect.DeepEqual(got, want) {
