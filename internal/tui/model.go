@@ -375,7 +375,7 @@ func (m Model) handleKey(key tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "enter":
 		return m, m.activateSelected()
-	case "space":
+	case " ", "space":
 		return m, action(func(ctx context.Context) error {
 			if m.playback.Playing {
 				return m.api.Pause(ctx, m.deviceID())

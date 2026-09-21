@@ -116,6 +116,7 @@ type recordingAPI struct {
 	removed      []string
 	playedURIs   [][]string
 	playContexts []string
+	paused       int
 	volume       int
 	next         int
 	contains     bool
@@ -124,6 +125,10 @@ type recordingAPI struct {
 func (f *recordingAPI) Play(_ context.Context, uris []string, contextURI, _ string) error {
 	f.playedURIs = append(f.playedURIs, append([]string(nil), uris...))
 	f.playContexts = append(f.playContexts, contextURI)
+	return nil
+}
+func (f *recordingAPI) Pause(context.Context, string) error {
+	f.paused++
 	return nil
 }
 
@@ -234,6 +239,34 @@ func TestTrackOnlyActionsAndBasicControls(t *testing.T) {
 	m = updated.(Model)
 	if m.view != NowPlaying || m.selected != 0 || cmd == nil {
 		t.Fatalf("go now playing: %s", m.DebugState())
+	}
+}
+
+func TestSpacebarPausesAndResumesPlayback(t *testing.T) {
+	api := &recordingAPI{}
+	m := New(api, false)
+	m.loading = false
+	m.playback, _ = api.Playback(context.Background())
+
+	updated, cmd := m.handleKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	m = updated.(Model)
+	if cmd == nil {
+		t.Fatal("spacebar did not create a pause command")
+	}
+	_ = cmd()
+	if api.paused != 1 {
+		t.Fatalf("Pause() calls = %d", api.paused)
+	}
+
+	m.playback.Playing = false
+	updated, cmd = m.handleKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	m = updated.(Model)
+	if cmd == nil {
+		t.Fatal("spacebar did not create a resume command")
+	}
+	_ = cmd()
+	if len(api.playedURIs) != 1 || len(api.playedURIs[0]) != 0 || api.playContexts[0] != "" {
+		t.Fatalf("resume Play() calls = uris %#v, contexts %#v", api.playedURIs, api.playContexts)
 	}
 }
 
