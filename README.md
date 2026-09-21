@@ -1,17 +1,18 @@
 # Sonicli
 
-Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminals. It can control an existing Spotify Connect device or play directly through the current computer using a separately installed local playback backend.
+Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminals. Windows users can run the Linux build through WSL 2 and control Spotify for Windows as a Connect device. Sonicli can control an existing Spotify Connect device or play directly through a supported local playback backend.
 
 ## Requirements
 
 - A Spotify Premium account for playback controls.
 - A Spotify developer application owned by a Premium account.
 - At least one available Spotify Connect device, librespot, or Spotify Soloist for direct local audio playback.
+- Go 1.24 or newer when installing from source.
 - A terminal of at least 60×16 cells; 92 columns or wider enables side navigation.
 
 Spotify development-mode applications support up to five allowlisted users. If somebody else uses your client ID, add their name and Spotify email under **Users Management** in the Spotify developer dashboard.
 
-## Install from source
+## Install on Linux
 
 ```sh
 go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
@@ -22,6 +23,65 @@ sonicli --help
 Add the `PATH` export to `~/.bashrc`, `~/.zshrc`, or the equivalent file for your shell so that `sonicli` remains available after opening a new terminal. If installation succeeds but the shell says `sonicli: command not found`, the missing `PATH` entry is normally the cause.
 
 Release archives contain a single `sonicli` binary for Linux and macOS on AMD64 and ARM64.
+
+## Install on macOS
+
+Sonicli runs natively on both Apple Silicon (`arm64`) and Intel (`amd64`) Macs.
+
+1. Install Go 1.24 or newer using the official [Go installer for macOS](https://go.dev/doc/install), then open a new Terminal and verify it:
+
+   ```sh
+   go version
+   ```
+
+2. Install Sonicli and add Go's binary directory to the default macOS `zsh` path:
+
+   ```sh
+   GOPROXY=direct go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
+   echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.zshrc
+   export PATH="$PATH:$(go env GOPATH)/bin"
+   sonicli --help
+   ```
+
+3. Start with an existing Spotify Connect device:
+
+   ```sh
+   sonicli config --player connect
+   sonicli
+   ```
+
+Open Spotify on the Mac, a phone, browser, or speaker so that Sonicli has a playback target. Press `d` inside Sonicli to select it. To make the Mac itself a Sonicli-managed receiver, follow **Easy local playback with librespot** below. Spotify Soloist is Linux-only.
+
+## Install on Windows with WSL 2
+
+Sonicli v1 does not publish or support a native Windows executable. The available Windows compatibility setup runs Sonicli in WSL 2 and uses the Spotify desktop app, browser, phone, or speaker as a Spotify Connect playback device. This WSL path is not part of Sonicli's release CI, so native Linux and macOS remain the fully tested platforms.
+
+1. Open PowerShell as Administrator, install Ubuntu under WSL 2, and restart Windows if prompted. Microsoft documents `wsl --install` for Windows 10 version 2004 or newer and Windows 11 in its [official WSL installation guide](https://learn.microsoft.com/windows/wsl/install):
+
+   ```powershell
+   wsl --install -d Ubuntu
+   ```
+
+2. Open the new Ubuntu terminal. Install Go 1.24 or newer using the official [Go Linux instructions](https://go.dev/doc/install), then install Sonicli inside WSL:
+
+   ```sh
+   go version
+   GOPROXY=direct go install github.com/harshkumar18-bzz/sonicli/cmd/sonicli@latest
+   echo 'export PATH="$PATH:$(go env GOPATH)/bin"' >> ~/.bashrc
+   export PATH="$PATH:$(go env GOPATH)/bin"
+   sonicli --help
+   ```
+
+3. Use Spotify Connect mode and launch Sonicli:
+
+   ```sh
+   sonicli config --player connect
+   sonicli
+   ```
+
+Keep Spotify for Windows open, begin playback there once if necessary, then press `d` in Sonicli and select the Windows computer. If Sonicli cannot open the login page automatically, copy the authorization URL printed in the WSL terminal into a Windows browser. WSL normally forwards Windows `localhost` connections to Linux applications, allowing the browser to reach Sonicli's `127.0.0.1:8989` OAuth callback; see Microsoft's [WSL networking guide](https://learn.microsoft.com/windows/wsl/networking).
+
+Managed librespot audio and Spotify Soloist are not supported in the Windows/WSL setup. Use `player = "connect"` and let the Windows Spotify application or another Connect device produce the audio.
 
 ## Update an existing installation
 
@@ -36,7 +96,7 @@ sonicli
 
 Quit an already running copy with `q` before restarting it. A running process continues to use the old binary until it is closed.
 
-## Quick start with local playback on Ubuntu or Debian
+## Quick start with local playback on native Ubuntu or Debian
 
 This complete setup installs Sonicli and librespot, connects both logins, and makes selected music play through the current computer:
 
@@ -259,4 +319,4 @@ Contributors and coding agents should read [AGENT.md](AGENT.md) after cloning. I
 
 ## Limitations
 
-Sonicli delegates direct audio decoding to a separately installed playback backend rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or support Windows in v1. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.
+Sonicli delegates direct audio decoding to a separately installed playback backend rather than implementing or redistributing Spotify's playback engine. It does not show album art, edit playlists, display lyrics, or provide a native Windows build in v1; Windows users can use the WSL 2 Spotify Connect setup above. Spotify may restrict the contents of playlists that the current user does not own or collaborate on; Sonicli reports that restriction without closing the player.
