@@ -1,0 +1,126 @@
+--- normal ---
+SONICLI  Now Playing                             Spotify Connect
+──────────────────────────────────────────────────────────────────────
+
+   Night Drive
+   Example · Signals
+
+   =-----------------------------------  0:10 / 3:20
+   >  Desk  vol 45%  shuffle off  repeat
+
+   Up next
+ > Afterglow  Example
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? help
+--- narrow ---
+SONICLI  Now Playing                   Spotify Connect
+────────────────────────────────────────────────────────────
+
+   Night Drive
+   Example · Signals
+
+   =-------------------------  0:10 / 3:20
+   >  Desk  vol 45%  shuffle off  repeat
+
+   Up next
+ > Afterglow  Example
+
+
+
+
+────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? …
+--- no_color ---
+SONICLI  Now Playing                             Spotify Connect
+──────────────────────────────────────────────────────────────────────
+
+   Night Drive
+   Example · Signals
+
+   =-----------------------------------  0:10 / 3:20
+   >  Desk  vol 45%  shuffle off  repeat
+
+   Up next
+ > Afterglow  Example
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? help
+--- empty ---
+SONICLI  Now Playing                             Spotify Connect
+──────────────────────────────────────────────────────────────────────
+
+   Nothing is playing. Open Spotify on a device, then press d.
+
+
+
+
+
+
+
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? help
+--- loading ---
+SONICLI  Now Playing                             Spotify Connect
+──────────────────────────────────────────────────────────────────────
+
+   Loading playback…
+
+
+
+
+
+
+
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? help
+--- offline ---
+SONICLI  Now Playing                OFFLINE · showing last state
+──────────────────────────────────────────────────────────────────────
+
+   Night Drive
+   Example · Signals
+
+   =-----------------------------------  0:10 / 3:20
+   >  Desk  vol 45%  shuffle off  repeat
+
+   Up next
+ > Afterglow  Example
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  tab views   / search   space play/pause   n/p skip   ? help
+--- error ---
+SONICLI  Now Playing                             Spotify Connect
+──────────────────────────────────────────────────────────────────────
+
+   Night Drive
+   Example · Signals
+
+   =-----------------------------------  0:10 / 3:20
+   >  Desk  vol 45%  shuffle off  repeat
+
+   Up next
+ > Afterglow  Example
+
+
+
+
+──────────────────────────────────────────────────────────────────────
+  Spotify rate limit reached

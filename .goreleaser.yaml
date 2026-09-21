@@ -1,0 +1,42 @@
+version: 2
+
+project_name: sonicli
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: sonicli
+    main: ./cmd/sonicli
+    binary: sonicli
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - ids: [sonicli]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - src: completions/sonicli.bash
+        dst: completions
+      - src: completions/_sonicli
+        dst: completions
+      - src: completions/sonicli.fish
+        dst: completions
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+
+release:
+  draft: true
