@@ -106,6 +106,24 @@ SONICLI  Now Playing                OFFLINE · showing last state
 
 ──────────────────────────────────────────────────────────────────────
   a queue   x remove   f like   space play/pause   ? help
+--- idle ---
+SONICLI  Now Playing                 IDLE · showing last session
+──────────────────────────────────────────────────────────────────────
+
+   CURRENT TRACK  SESSION IDLE
+ > Night Drive
+   Example  |  Signals
+
+   0:10  ==--------------------------------------------  -3:10
+   Desk  |  45% volume  |  shuffle off  |  repeat off
+
+   --------------------------------------------------------------
+   LAST QUEUE  1
+   Enter play  ·  a add  ·  x remove
+   Afterglow  Example
+
+──────────────────────────────────────────────────────────────────────
+  a queue   x remove   f like   space play/pause   ? help
 --- error ---
 SONICLI  Now Playing                             Spotify Connect
 ──────────────────────────────────────────────────────────────────────

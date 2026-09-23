@@ -180,7 +180,7 @@ Selecting a track from search starts its album at that exact track; selecting a 
 
 Spotify's Web API can read the playback queue and append to it, but it does not provide an endpoint to delete or reorder individual live queue entries. When you press `x`, Sonicli immediately hides that occurrence and automatically skips it when Spotify reaches it. This removal is active only while the current Sonicli session remains open; it does not mutate Spotify's server-side queue.
 
-Now Playing renders progress locally ten times per second for a responsive elapsed/remaining counter while retaining the slower Spotify polling interval needed to avoid unnecessary API traffic. When a session-local removal is about to reach the front of the queue, Sonicli temporarily polls more quickly so the unwanted track is skipped promptly.
+Now Playing renders progress locally ten times per second for a responsive elapsed/remaining counter while retaining the slower Spotify polling interval needed to avoid unnecessary API traffic. When a session-local removal is about to reach the front of the queue, Sonicli temporarily polls more quickly so the unwanted track is skipped promptly. If Spotify retires an inactive Connect session after a long pause, Sonicli keeps the last valid track, position, device, and queue visible under a **Session Idle** label until Spotify reports active playback again.
 
 ## Easy local playback with librespot
 

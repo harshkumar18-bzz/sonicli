@@ -54,6 +54,8 @@ func (m Model) headerView(p palette) string {
 	right := "Spotify Connect"
 	if m.offline {
 		right = "OFFLINE · showing last state"
+	} else if m.sessionIdle {
+		right = "IDLE · showing last session"
 	}
 	space := max(1, m.width-lipgloss.Width(brand)-lipgloss.Width(view)-lipgloss.Width(right)-8)
 	return lipgloss.NewStyle().Width(m.width).Padding(0, 2).BorderBottom(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(p.border).Render(brand + "  " + view + strings.Repeat(" ", space) + lipgloss.NewStyle().Foreground(p.muted).Render(right))
@@ -105,7 +107,9 @@ func (m Model) nowPlayingView(p palette, height int) string {
 	}
 	t := *m.playback.Item
 	play := "PLAYING"
-	if !m.playback.Playing {
+	if m.sessionIdle {
+		play = "SESSION IDLE"
+	} else if !m.playback.Playing {
 		play = "PAUSED"
 	}
 	badges := make([]string, 0, 2)
@@ -143,7 +147,11 @@ func (m Model) nowPlayingView(p palette, height int) string {
 		stateStyle = stateStyle.Foreground(p.muted)
 	}
 	section := lipgloss.NewStyle().Foreground(p.border).Render("  " + strings.Repeat(m.symbol("─", "-"), max(8, min(contentWidth-4, 64))))
-	queueLabel := fmt.Sprintf("  UP NEXT  %d", len(m.queue))
+	queueTitle := "UP NEXT"
+	if m.sessionIdle {
+		queueTitle = "LAST QUEUE"
+	}
+	queueLabel := fmt.Sprintf("  %s  %d", queueTitle, len(m.queue))
 	queueHint := "  Enter play  ·  a add  ·  x remove"
 	lines := []string{
 		"",

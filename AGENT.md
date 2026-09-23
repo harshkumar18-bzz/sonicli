@@ -118,6 +118,10 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
   with the track URI as the offset. Do not reduce contextual playback to a
   one-item `uris` request; Spotify needs the context to continue its queue.
 - Preserve the last usable TUI state during transient offline failures.
+- Spotify can return an empty successful playback response after a Connect
+  session has been paused for a while. Preserve the last valid playback and
+  queue snapshot, mark it session-idle, and replace it only when a real
+  playback object arrives.
 
 ### Local playback
 

@@ -340,6 +340,58 @@ func TestFrameTickKeepsProgressRenderingResponsive(t *testing.T) {
 	}
 }
 
+func TestEmptyPlaybackPreservesLastUsableSession(t *testing.T) {
+	m := New(fakeAPI{}, false)
+	m.width, m.height = 100, 28
+	m.loading = false
+	m.playback, _ = fakeAPI{}.Playback(context.Background())
+	m.playback.Item.ID = "track-1"
+	m.playback.FetchedAt = time.Now().Add(-time.Second)
+	m.queue = []spotify.Track{{ID: "track-2", URI: "spotify:track:2", Name: "Afterglow"}}
+
+	updated, _ := m.Update(playbackMsg{value: spotify.Playback{FetchedAt: time.Now()}})
+	m = updated.(Model)
+	if m.playback.Item == nil || m.playback.Item.ID != "track-1" || m.playback.Playing || !m.sessionIdle {
+		t.Fatalf("empty playback erased session: playback=%#v idle=%t", m.playback, m.sessionIdle)
+	}
+	if m.playback.Progress < 10_900 {
+		t.Fatalf("frozen progress = %d", m.playback.Progress)
+	}
+	view := m.View()
+	for _, want := range []string{"IDLE · showing last session", "SESSION IDLE", "Night Drive", "LAST QUEUE", "Afterglow"} {
+		if !strings.Contains(view, want) {
+			t.Fatalf("idle view missing %q:\n%s", want, view)
+		}
+	}
+
+	updated, _ = m.Update(queueMsg{value: spotify.Queue{}})
+	m = updated.(Model)
+	if len(m.queue) != 1 || m.queue[0].ID != "track-2" {
+		t.Fatalf("empty queue erased last snapshot: %#v", m.queue)
+	}
+
+	recovered := spotify.Playback{
+		Playing:  true,
+		Progress: 500,
+		Device:   spotify.Device{ID: "d2", Name: "Phone"},
+		Item:     &spotify.Track{ID: "track-3", URI: "spotify:track:3", Name: "Back Again", Duration: 100_000},
+	}
+	updated, _ = m.Update(playbackMsg{value: recovered})
+	m = updated.(Model)
+	if m.sessionIdle || m.playback.Item == nil || m.playback.Item.ID != "track-3" || !m.playback.Playing {
+		t.Fatalf("real playback did not replace idle snapshot: playback=%#v idle=%t", m.playback, m.sessionIdle)
+	}
+}
+
+func TestInitialEmptyPlaybackRemainsEmpty(t *testing.T) {
+	m := New(fakeAPI{}, false)
+	updated, _ := m.Update(playbackMsg{value: spotify.Playback{FetchedAt: time.Now()}})
+	m = updated.(Model)
+	if m.playback.Item != nil || m.sessionIdle || m.loading {
+		t.Fatalf("initial empty playback = %#v idle=%t loading=%t", m.playback, m.sessionIdle, m.loading)
+	}
+}
+
 func TestFlattenSearchHandlesNullPlaylist(t *testing.T) {
 	result := spotify.SearchResults{Tracks: spotify.Page[spotify.Track]{Items: []spotify.Track{{Name: "Track", Album: spotify.Album{URI: "spotify:album:1"}}}}, Playlists: spotify.Page[*spotify.Playlist]{Items: []*spotify.Playlist{nil}}}
 	items := flattenSearch(result)
@@ -422,6 +474,7 @@ func TestGoldenRenderingStates(t *testing.T) {
 		{"empty", func(m *Model) { m.playback.Item = nil; m.queue = nil }},
 		{"loading", func(m *Model) { m.loading = true }},
 		{"offline", func(m *Model) { m.offline = true }},
+		{"idle", func(m *Model) { m.playback.Playing = false; m.sessionIdle = true }},
 		{"error", func(m *Model) { m.setStatus("Spotify rate limit reached", true) }},
 	}
 	var got strings.Builder

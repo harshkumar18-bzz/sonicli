@@ -86,6 +86,7 @@ type Model struct {
 	searching     bool
 	loading       bool
 	offline       bool
+	sessionIdle   bool
 	showHelp      bool
 	status        string
 	statusError   bool
@@ -189,12 +190,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.setStatus(msg.err.Error(), true)
 			m.pollDelay = nextBackoff(m.pollDelay, msg.err)
 		} else {
-			m.playback, m.offline = msg.value, false
+			wasIdle := m.sessionIdle
+			m.offline = false
+			if msg.value.Item == nil && m.playback.Item != nil {
+				// Spotify may return 204 No Content after a Connect session has
+				// been paused for a while. Keep the last usable snapshot instead
+				// of making Now Playing suddenly blank.
+				m.playback.Progress = m.playback.CurrentProgress(time.Now())
+				m.playback.Playing = false
+				m.playback.FetchedAt = msg.value.FetchedAt
+				m.sessionIdle = true
+				if !wasIdle {
+					m.setStatus("Spotify session idle · keeping the last track visible", false)
+				}
+			} else {
+				m.playback = msg.value
+				m.sessionIdle = false
+			}
 			m.pollDelay = 12 * time.Second
 			if m.playback.Playing {
 				m.pollDelay = 4 * time.Second
 			}
-			if m.skipNext && m.playback.Item != nil && m.playback.Item.Duration-m.playback.Progress <= 8_000 {
+			if !m.sessionIdle && m.skipNext && m.playback.Item != nil && m.playback.Item.Duration-m.playback.Progress <= 8_000 {
 				m.pollDelay = 500 * time.Millisecond
 			}
 			playbackAdvanced := previousTrack != "" && m.playback.Item != nil && m.playback.Item.ID != previousTrack
@@ -218,6 +235,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case queueMsg:
 		if msg.err == nil {
+			if len(msg.value.Items) == 0 && msg.value.CurrentlyPlaying == nil && len(m.queue) > 0 && (m.sessionIdle || !m.playback.Playing) {
+				break
+			}
 			m.skipNext = len(msg.value.Items) > 0 && m.skipQueue[msg.value.Items[0].URI] > 0
 			m.queue = m.visibleQueue(msg.value.Items)
 			if m.selected >= m.itemCount() {
