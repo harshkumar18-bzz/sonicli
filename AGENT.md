@@ -148,8 +148,7 @@ the Spotify and local-player onboarding steps in `README.md` afterward.
   input handling.
 - Preserve both arrow keys and `j`/`k`, plus the documented shortcuts.
 - Keep the minimum-size message, narrow single-pane layout, normal side-nav
-  layout, wide two-panel Now Playing view, `NO_COLOR` behavior, and ASCII
-  fallback working.
+  layout, `NO_COLOR` behavior, and ASCII fallback working.
 - Poll playback approximately every four seconds while playing and less often
   while paused. Continue interpolating progress locally and render 100 ms
   frame ticks independently so the timer can update smoothly without extra

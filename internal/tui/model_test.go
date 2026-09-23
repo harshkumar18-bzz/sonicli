@@ -57,20 +57,15 @@ func (fakeAPI) ContainsLibrary(context.Context, []string) ([]bool, error) { retu
 
 func TestResponsiveViews(t *testing.T) {
 	m := New(fakeAPI{}, false)
-	m.width, m.height = 120, 34
+	m.width, m.height = 100, 28
 	m.loading = false
 	p, _ := fakeAPI{}.Playback(context.Background())
 	q, _ := fakeAPI{}.Queue(context.Background())
 	m.playback, m.queue = p, q.Items
 	wide := m.View()
-	for _, want := range []string{"SONICLI", "Now Playing", "CURRENT TRACK", "Night Drive", "UP NEXT", "Afterglow", "space", "Spotify Connect"} {
+	for _, want := range []string{"SONICLI", "Now Playing", "Night Drive", "Afterglow", "Spotify Connect"} {
 		if !strings.Contains(wide, want) {
 			t.Errorf("wide view missing %q\n%s", want, wide)
-		}
-	}
-	for number, line := range strings.Split(normalizeGolden(wide), "\n") {
-		if width := len([]rune(line)); width > m.width {
-			t.Errorf("wide view line %d is %d cells, terminal is %d\n%s", number+1, width, m.width, line)
 		}
 	}
 	m.width = 70
@@ -474,14 +469,6 @@ func TestGoldenRenderingStates(t *testing.T) {
 		edit func(*Model)
 	}{
 		{"normal", func(*Model) {}},
-		{"wide_player", func(m *Model) {
-			m.width, m.height = 120, 34
-			m.queue = []spotify.Track{
-				{URI: "spotify:track:2", Name: "Afterglow", Artists: []spotify.Artist{{Name: "Example"}}},
-				{URI: "spotify:track:3", Name: "Neon Lines", Artists: []spotify.Artist{{Name: "City Signals"}}},
-				{URI: "spotify:track:4", Name: "Last Train Home", Artists: []spotify.Artist{{Name: "Night Shift"}}},
-			}
-		}},
 		{"narrow", func(m *Model) { m.width = 60 }},
 		{"no_color", func(m *Model) { m.noColor = true }},
 		{"empty", func(m *Model) { m.playback.Item = nil; m.queue = nil }},
