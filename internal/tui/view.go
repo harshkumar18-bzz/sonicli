@@ -10,7 +10,7 @@ import (
 )
 
 type palette struct {
-	accent, text, muted, border, error lipgloss.Color
+	accent, text, muted, border, surface, error lipgloss.Color
 }
 
 func (m Model) colors() palette {
@@ -19,7 +19,7 @@ func (m Model) colors() palette {
 	}
 	return palette{
 		accent: lipgloss.Color("42"), text: lipgloss.Color("252"), muted: lipgloss.Color("242"),
-		border: lipgloss.Color("238"), error: lipgloss.Color("203"),
+		border: lipgloss.Color("238"), surface: lipgloss.Color("235"), error: lipgloss.Color("203"),
 	}
 }
 
@@ -105,24 +105,16 @@ func (m Model) nowPlayingView(p palette, height int) string {
 	if m.playback.Item == nil {
 		return "\n  Nothing is playing\n\n  Press / to find music or d to choose a Spotify Connect device."
 	}
+	if m.contentWidth() >= 90 {
+		return m.nowPlayingWideView(p, height)
+	}
+	return m.nowPlayingCompactView(p, height)
+}
+
+func (m Model) nowPlayingCompactView(p palette, height int) string {
 	t := *m.playback.Item
-	play := "PLAYING"
-	if m.sessionIdle {
-		play = "SESSION IDLE"
-	} else if !m.playback.Playing {
-		play = "PAUSED"
-	}
-	badges := make([]string, 0, 2)
-	if m.saved[t.URI] {
-		badges = append(badges, "[LIKED]")
-	}
-	if t.Explicit {
-		badges = append(badges, "[E]")
-	}
-	badgeText := ""
-	if len(badges) > 0 {
-		badgeText = "  " + strings.Join(badges, " ")
-	}
+	play := m.playbackState()
+	badgeText := m.trackBadges(t)
 	contentWidth := m.contentWidth()
 	titlePrefix := "  "
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(p.text)
@@ -169,6 +161,174 @@ func (m Model) nowPlayingView(p palette, height int) string {
 	limit := max(1, height-len(lines))
 	lines = append(lines, m.trackRows(m.queue, limit, 1, "  Queue is empty.", p)...)
 	return strings.Join(lines, "\n")
+}
+
+func (m Model) nowPlayingWideView(p palette, height int) string {
+	t := *m.playback.Item
+	contentWidth := m.contentWidth()
+	gap := 2
+	queueWidth := min(38, max(30, contentWidth/3))
+	currentWidth := max(44, contentWidth-queueWidth-gap)
+	queueWidth = max(26, contentWidth-currentWidth-gap)
+
+	play := m.playbackState()
+	stateStyle := lipgloss.NewStyle().Bold(true).Foreground(p.accent)
+	if !m.playback.Playing {
+		stateStyle = stateStyle.Foreground(p.muted)
+	}
+	label := lipgloss.NewStyle().Foreground(p.muted).Render("CURRENT TRACK") + "  " + stateStyle.Render(play)
+
+	badgeText := m.trackBadges(t)
+	titlePrefix := "  "
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(p.text)
+	if m.selected == 0 {
+		titlePrefix = m.symbol("› ", "> ")
+		titleStyle = titleStyle.Foreground(p.accent)
+	}
+	titleWidth := max(12, currentWidth-lipgloss.Width(badgeText)-6)
+	title := titlePrefix + titleStyle.Render(truncate(t.Name, titleWidth))
+	if badgeText != "" {
+		title += lipgloss.NewStyle().Foreground(p.muted).Render(badgeText)
+	}
+
+	separator := m.symbol("  •  ", "  |  ")
+	metadata := strings.Join(nonEmpty([]string{t.ArtistNames(), t.Album.Name}), separator)
+	metadata = lipgloss.NewStyle().Foreground(p.muted).Render(truncate(metadata, currentWidth-4))
+	progress := m.progressBar(t.Duration, m.playback.CurrentProgress(time.Now()), max(12, currentWidth-18), p)
+	transport := strings.Join([]string{
+		emptyAs(m.playback.Device.Name, "No active device"),
+		fmt.Sprintf("%d%% volume", m.playback.Device.Volume),
+		"shuffle " + onOff(m.playback.Shuffle),
+		"repeat " + emptyAs(m.playback.Repeat, "off"),
+	}, separator)
+	transport = lipgloss.NewStyle().Foreground(p.muted).Render(truncate(transport, currentWidth-4))
+
+	currentLines := []string{
+		label,
+		"",
+		title,
+		"  " + metadata,
+		"",
+		progress,
+		"",
+		transport,
+		"",
+		m.shortcutRows(p, currentWidth-2),
+	}
+	currentPanel := lipgloss.NewStyle().Width(currentWidth).Height(height).Padding(1, 1).Render(strings.Join(currentLines, "\n"))
+	queuePanel := m.queuePanelView(p, height, queueWidth)
+	spacer := lipgloss.NewStyle().Width(gap).Height(height).Render("")
+	return lipgloss.JoinHorizontal(lipgloss.Top, currentPanel, spacer, queuePanel)
+}
+
+func (m Model) queuePanelView(p palette, height, width int) string {
+	title := "UP NEXT"
+	if m.sessionIdle {
+		title = "LAST QUEUE"
+	}
+	header := spreadText(
+		lipgloss.NewStyle().Bold(true).Foreground(p.text).Render(title),
+		lipgloss.NewStyle().Bold(true).Foreground(p.accent).Render(fmt.Sprintf("%d", len(m.queue))),
+		max(1, width-4),
+	)
+	lines := []string{header, ""}
+	if len(m.queue) == 0 {
+		lines = append(lines, lipgloss.NewStyle().Foreground(p.muted).Render("Queue is empty."))
+	} else {
+		limit := max(1, (height-5)/2)
+		start, end := window(max(0, m.selected-1), len(m.queue), limit)
+		rowWidth := max(12, width-4)
+		for i := start; i < end; i++ {
+			track := m.queue[i]
+			prefix := "  "
+			rowStyle := lipgloss.NewStyle().Foreground(p.text)
+			if m.selected == i+1 {
+				prefix = m.symbol("› ", "> ")
+				rowStyle = rowStyle.Foreground(p.accent).Bold(true)
+			}
+			artist := track.ArtistNames()
+			name := track.Name
+			if m.saved[track.URI] {
+				name += " [LIKED]"
+			}
+			if track.Explicit {
+				name += " [E]"
+			}
+			available := max(14, rowWidth-lipgloss.Width(prefix)-1)
+			artistWidth := min(lipgloss.Width(artist), max(6, available/2))
+			nameWidth := max(8, available-artistWidth)
+			row := prefix + spreadText(
+				truncate(name, nameWidth),
+				lipgloss.NewStyle().Foreground(p.muted).Render(truncate(artist, artistWidth)),
+				rowWidth-lipgloss.Width(prefix),
+			)
+			lines = append(lines, rowStyle.Render(row))
+			if i < end-1 {
+				lines = append(lines, lipgloss.NewStyle().Foreground(p.border).Render(strings.Repeat(m.symbol("─", "-"), rowWidth)))
+			}
+		}
+	}
+	return lipgloss.NewStyle().Width(width).Height(height).Padding(1, 2).Background(p.surface).BorderLeft(true).BorderStyle(lipgloss.NormalBorder()).BorderForeground(p.border).Render(strings.Join(lines, "\n"))
+}
+
+func (m Model) shortcutRows(p palette, width int) string {
+	type shortcut struct{ key, label string }
+	shortcuts := []shortcut{
+		{"space", "play/pause"},
+		{"n/p", "skip"},
+		{"h/l", "seek 10s"},
+		{"+/-", "volume"},
+	}
+	rows := make([]string, 0, 2)
+	line := ""
+	for _, item := range shortcuts {
+		chip := m.shortcutChip(item.key, item.label, p)
+		candidate := chip
+		if line != "" {
+			candidate = line + " " + chip
+		}
+		if line != "" && lipgloss.Width(candidate) > width {
+			rows = append(rows, line)
+			line = chip
+		} else {
+			line = candidate
+		}
+	}
+	if line != "" {
+		rows = append(rows, line)
+	}
+	return strings.Join(rows, "\n")
+}
+
+func (m Model) shortcutChip(key, label string, p palette) string {
+	bracket := lipgloss.NewStyle().Foreground(p.border)
+	return bracket.Render("[") +
+		lipgloss.NewStyle().Bold(true).Foreground(p.accent).Render(key) + " " +
+		lipgloss.NewStyle().Foreground(p.muted).Render(label) + bracket.Render("]")
+}
+
+func (m Model) playbackState() string {
+	if m.sessionIdle {
+		return "SESSION IDLE"
+	}
+	if !m.playback.Playing {
+		return "PAUSED"
+	}
+	return "PLAYING"
+}
+
+func (m Model) trackBadges(t spotify.Track) string {
+	badges := make([]string, 0, 2)
+	if m.saved[t.URI] {
+		badges = append(badges, "[LIKED]")
+	}
+	if t.Explicit {
+		badges = append(badges, "[E]")
+	}
+	if len(badges) == 0 {
+		return ""
+	}
+	return "  " + strings.Join(badges, " ")
 }
 
 func (m Model) searchView(p palette, height int) string {
@@ -382,6 +542,10 @@ func truncate(value string, maxWidth int) string {
 		return string(r[:maxWidth])
 	}
 	return string(r[:maxWidth-1]) + "…"
+}
+func spreadText(left, right string, width int) string {
+	gap := max(1, width-lipgloss.Width(left)-lipgloss.Width(right))
+	return left + strings.Repeat(" ", gap) + right
 }
 func window(selected, total, limit int) (int, int) {
 	if limit <= 0 || total == 0 {

@@ -8,7 +8,7 @@ Sonicli is a compact, keyboard-first Spotify player for Linux and macOS terminal
 - A Spotify developer application owned by a Premium account.
 - At least one available Spotify Connect device, librespot, or Spotify Soloist for direct local audio playback.
 - Go 1.24 or newer when installing from source.
-- A terminal of at least 60×16 cells; 92 columns or wider enables side navigation.
+- A terminal of at least 60×16 cells; 92 columns enables side navigation and 116 columns enables the full two-panel player.
 
 Spotify development-mode applications support up to five allowlisted users. If somebody else uses your client ID, add their name and Spotify email under **Users Management** in the Spotify developer dashboard.
 
@@ -171,6 +171,8 @@ sonicli --version
 | `q` | Quit |
 
 Set `NO_COLOR=1` to disable color. Set `unicode = false` with `sonicli config --unicode false` for an ASCII-only interface.
+
+On wide terminals, **Now Playing** gives the current track, progress, playback state, device settings, and keyboard shortcuts a dedicated main panel while keeping the live queue visible in a separate **Up Next** panel. Smaller terminals automatically fall back to the compact stacked player, so the same controls remain usable without horizontal scrolling.
 
 The playback shortcut works whenever the search field is not accepting text. While the search field is active, `Space` inserts a space in the query; press `Enter` to submit the search or `Esc` to leave the field before toggling playback. Sonicli sends pause/resume to the active Spotify Connect, librespot, or Soloist device and refreshes Now Playing after the command.
 

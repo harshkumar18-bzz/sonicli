@@ -16,6 +16,40 @@ SONICLI  Now Playing                             Spotify Connect
 
 ──────────────────────────────────────────────────────────────────────
   a queue   x remove   f like   space play/pause   ? help
+--- wide_player ---
+SONICLI  Now Playing                                                                               Spotify Connect
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+                      │                                                                │
+ > Now Playing        │  CURRENT TRACK  PLAYING                                        │  UP NEXT                   3
+                      │                                                                │
+   Search             │  > Night Drive                                                 │    Afterglow         Example
+                      │    Example  |  Signals                                         │  ---------------------------
+   Library            │                                                                │    Neon Lines   City Signals
+                      │  0:10  ==-----------------------------------------  -3:10      │  ---------------------------
+   Devices            │                                                                │    Last Train H… Night Shift
+                      │  Desk  |  45% volume  |  shuffle off  |  repeat off            │
+                      │                                                                │
+                      │  [space play/pause] [n/p skip] [h/l seek 10s] [+/- volume]     │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+                      │                                                                │
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  a queue   x remove   f like   space play/pause   ? help
 --- narrow ---
 SONICLI  Now Playing                   Spotify Connect
 ────────────────────────────────────────────────────────────
